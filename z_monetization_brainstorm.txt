@@ -1,0 +1,107 @@
+YOUMAXING Monetization Brainstorm (Base app is free)
+===================================================
+
+North Star
+---------
+- Keep the core habit tracking + basic AI check-ins free.
+- Monetize: (1) power features, (2) higher usage, (3) premium insights, (4) integrations, (5) accountability/coaching.
+
+Definitions (so pricing stays coherent)
+--------------------------------------
+Free: onboarding + dashboard + basic tracking + limited AI + limited recommendations.
+Paid: more AI, automation, integrations, advanced insights, personalization, and “outcomes”.
+
+Web (Stripe) subscription options
+--------------------------------
+1) YOUMAXING Plus (individual)
+   - Price ideas: $9.99–$14.99/mo or $79–$119/yr
+   - Unlocks:
+     - Higher AI message quota + longer memory window
+     - Personalized weekly review + next-week plan
+     - Advanced recommendations (prioritized, explain “why”, “what to do next”)
+     - Custom routines/templates per aspect
+     - Deep links + reminders + recurring tasks
+
+2) YOUMAXING Pro (power user)
+   - Price ideas: $19.99–$29.99/mo
+   - Unlocks:
+     - Multiple AI “modes” (coach / analyst / friend) + tone + provider choice
+     - More integrations (calendar, health/fitness, finance export)
+     - Trend-based insights + sources + “watchlists”
+     - Goals dashboard: streaks, KPIs, progress projections
+
+3) Family / Duo plan (2–5 people)
+   - Price ideas: $24.99–$49.99/mo
+   - Unlocks:
+     - Shared events + reminders (birthdays, trips, family goals)
+     - Optional “accountability” nudges between members
+     - Shared shopping / meal planning / travel planning boards
+
+App Store / Google Play monetization (IAP)
+-----------------------------------------
+Subscription SKU recommendations:
+- Monthly + annual (always), optionally weekly for “trial-like” entry.
+- Keep features aligned with web tiers; avoid fragmentation.
+
+Suggested IAP tiers:
+1) Plus (Mobile) – same as web Plus
+2) Pro (Mobile) – same as web Pro
+
+Notes:
+- If you sell on web, follow platform rules: don’t mention “cheaper on web” inside the app copy.
+- Use “Manage subscription” and neutral language.
+
+Freemium upgrade triggers (what motivates purchase)
+--------------------------------------------------
+- AI quota reached → “Upgrade for unlimited coaching”
+- Want weekly review / plan generation → paywall
+- Want integrations (calendar sync, health, finance) → paywall
+- Want “deep personalization” (tone/provider, memory, goal templates) → paywall
+- Want accountability/coaching features → paywall
+
+Add-ons (optional, keeps base cheap)
+-----------------------------------
+Consumable credits (web/app):
+- “AI credits pack” (for extra messages, plan generations, or trend scans)
+- Good when users are mostly free but occasionally want a big session.
+
+One-time purchases:
+- “30-day Youmaxing Challenge Pack” (templates + daily plan + prompts)
+- “Goal System Packs” (e.g., Training cut/bulk plan, Finance budgeting system)
+
+B2B / Partnerships (later)
+-------------------------
+- Corporate wellness: team plan + challenges + dashboards
+- Gyms/coaches: coaching portal + client templates
+- Influencer bundles: “creator pack” with custom routines and prompts
+
+What should remain free (to feel generous)
+------------------------------------------
+- Basic tracking (manual)
+- Basic reminders (limited)
+- Basic AI chat (limited)
+- Basic recommendations feed (limited)
+
+What should be paid (high perceived value)
+------------------------------------------
+- Weekly review + plan generation
+- Integrations & automation
+- Higher AI usage + long-term “memory”
+- Advanced analytics + projections
+- Accountability features (nudges, check-ins, “coach mode”)
+
+Experiment ideas (pricing + positioning)
+----------------------------------------
+- 7-day free trial of Plus (annual only)
+- Intro offer: $0.99 first week / first month (careful with churn)
+- Student pricing (requires verification)
+- “Founders” annual pricing for early adopters
+
+Next questions for you (so we can lock a plan)
+----------------------------------------------
+1) What is the single “must-have” premium feature we can sell first?
+2) Do you want to monetize mainly via subscriptions, or mix subs + credits?
+3) Target audience: students, young pros, fitness-focused, founders?
+4) Expected AI cost per active user (roughly) so we set quotas correctly?
+
+

@@ -1,26 +1,440 @@
-@import "tailwindcss";
+/* Custom font import - Outfit for modern feel */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: 'Outfit', system-ui, sans-serif;
   --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+/* YOUMAXING Dark Theme - Sleek & Modern */
+:root {
+  --radius: 0.75rem;
+  --background: oklch(0.13 0.02 270);
+  --foreground: oklch(0.95 0.01 270);
+  --card: oklch(0.17 0.02 270);
+  --card-foreground: oklch(0.95 0.01 270);
+  --popover: oklch(0.17 0.02 270);
+  --popover-foreground: oklch(0.95 0.01 270);
+  --primary: oklch(0.7 0.2 280);
+  --primary-foreground: oklch(0.98 0 0);
+  --secondary: oklch(0.22 0.02 270);
+  --secondary-foreground: oklch(0.9 0.01 270);
+  --muted: oklch(0.2 0.02 270);
+  --muted-foreground: oklch(0.6 0.02 270);
+  --accent: oklch(0.65 0.18 330);
+  --accent-foreground: oklch(0.98 0 0);
+  --destructive: oklch(0.6 0.22 25);
+  --border: oklch(0.25 0.02 270);
+  --input: oklch(0.22 0.02 270);
+  --ring: oklch(0.7 0.2 280);
+  --chart-1: oklch(0.7 0.2 280);
+  --chart-2: oklch(0.65 0.18 330);
+  --chart-3: oklch(0.7 0.18 180);
+  --chart-4: oklch(0.75 0.16 60);
+  --chart-5: oklch(0.65 0.2 25);
+  --sidebar: oklch(0.15 0.02 270);
+  --sidebar-foreground: oklch(0.9 0.01 270);
+  --sidebar-primary: oklch(0.7 0.2 280);
+  --sidebar-primary-foreground: oklch(0.98 0 0);
+  --sidebar-accent: oklch(0.2 0.02 270);
+  --sidebar-accent-foreground: oklch(0.9 0.01 270);
+  --sidebar-border: oklch(0.25 0.02 270);
+  --sidebar-ring: oklch(0.7 0.2 280);
+}
+
+/* Light theme variant - Warm & Elegant */
+.light {
+  --background: oklch(0.985 0.008 85);
+  --foreground: oklch(0.2 0.03 280);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.2 0.03 280);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.2 0.03 280);
+  --primary: oklch(0.5 0.22 280);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.96 0.015 280);
+  --secondary-foreground: oklch(0.25 0.03 280);
+  --muted: oklch(0.94 0.012 85);
+  --muted-foreground: oklch(0.4 0.02 280);
+  --accent: oklch(0.55 0.2 330);
+  --accent-foreground: oklch(0.99 0 0);
+  --destructive: oklch(0.55 0.25 25);
+  --border: oklch(0.88 0.02 280);
+  --input: oklch(0.95 0.01 85);
+  --ring: oklch(0.5 0.22 280);
+  --sidebar: oklch(0.99 0.005 85);
+  --sidebar-foreground: oklch(0.2 0.03 280);
+  --sidebar-primary: oklch(0.5 0.22 280);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.96 0.015 280);
+  --sidebar-accent-foreground: oklch(0.2 0.03 280);
+  --sidebar-border: oklch(0.9 0.015 280);
+  --sidebar-ring: oklch(0.5 0.22 280);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Outfit', system-ui, sans-serif;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* Custom scrollbar - Dark */
+:root ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+:root ::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+:root ::-webkit-scrollbar-thumb {
+  background: oklch(0.3 0.02 270);
+  border-radius: 4px;
+}
+
+:root ::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.4 0.02 270);
+}
+
+/* Custom scrollbar - Light */
+.light ::-webkit-scrollbar-thumb {
+  background: oklch(0.75 0.02 280);
+}
+
+.light ::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.65 0.03 280);
+}
+
+/* Glass morphism utility - Dark */
+.glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Glass morphism utility - Light */
+.light .glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(139, 92, 246, 0.1);
+  box-shadow: 0 4px 24px -4px rgba(139, 92, 246, 0.08);
+}
+
+/* Glow effects */
+.glow-purple {
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+}
+
+.glow-pink {
+  box-shadow: 0 0 20px rgba(236, 72, 153, 0.3);
+}
+
+/* Gradient text */
+.gradient-text {
+  background: linear-gradient(135deg, oklch(0.7 0.2 280), oklch(0.65 0.18 330));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Animation for floating elements */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Mesh gradient background - Dark */
+.mesh-gradient {
+  background: 
+    radial-gradient(at 40% 20%, oklch(0.3 0.15 280 / 0.4) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, oklch(0.25 0.12 330 / 0.3) 0px, transparent 50%),
+    radial-gradient(at 0% 50%, oklch(0.2 0.1 200 / 0.3) 0px, transparent 50%),
+    radial-gradient(at 80% 50%, oklch(0.25 0.1 280 / 0.2) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, oklch(0.2 0.1 330 / 0.3) 0px, transparent 50%),
+    var(--background);
+}
+
+/* Mesh gradient background - Light */
+.light .mesh-gradient {
+  background: 
+    radial-gradient(at 40% 20%, oklch(0.85 0.12 280 / 0.25) 0px, transparent 50%),
+    radial-gradient(at 80% 0%, oklch(0.88 0.1 330 / 0.2) 0px, transparent 50%),
+    radial-gradient(at 0% 50%, oklch(0.9 0.08 200 / 0.15) 0px, transparent 50%),
+    radial-gradient(at 80% 50%, oklch(0.85 0.08 60 / 0.1) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, oklch(0.88 0.08 330 / 0.15) 0px, transparent 50%),
+    var(--background);
+}
+
+/* Light mode card shadows */
+.light .card-elevated {
+  box-shadow: 
+    0 1px 2px rgba(139, 92, 246, 0.04),
+    0 4px 12px rgba(139, 92, 246, 0.06),
+    0 12px 32px rgba(139, 92, 246, 0.08);
+}
+
+/* Light mode sidebar shadow */
+.light .sidebar-elevated {
+  box-shadow: 
+    4px 0 24px -4px rgba(139, 92, 246, 0.08),
+    1px 0 0 rgba(139, 92, 246, 0.05);
+}
+
+/* Hide scrollbar but keep functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Thin scrollbar */
+.scrollbar-thin {
+  scrollbar-width: thin;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+}
+
+/* Wave animation for avatar arms */
+@keyframes wave {
+  0%, 100% {
+    transform: rotate(-5deg);
+  }
+  50% {
+    transform: rotate(15deg);
+  }
+}
+
+.animate-wave {
+  animation: wave 2s ease-in-out infinite;
+  transform-origin: top center;
+}
+
+/* Floating particles */
+@keyframes float-particle {
+  0%, 100% {
+    transform: translateY(0) translateX(0);
+    opacity: 0.3;
+  }
+  25% {
+    transform: translateY(-20px) translateX(10px);
+    opacity: 0.6;
+  }
+  50% {
+    transform: translateY(-10px) translateX(-5px);
+    opacity: 0.4;
+  }
+  75% {
+    transform: translateY(-30px) translateX(5px);
+    opacity: 0.5;
+  }
+}
+
+.animate-float-particle {
+  animation: float-particle 4s ease-in-out infinite;
+}
+
+/* Fade in animation */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out;
+}
+
+/* Pulse glow */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px var(--glow-color, rgba(139, 92, 246, 0.3));
+  }
+  50% {
+    box-shadow: 0 0 40px var(--glow-color, rgba(139, 92, 246, 0.5));
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Shimmer effect */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.1) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* Scan line effect for futuristic feel */
+.scan-lines {
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 1px,
+    rgba(0, 0, 0, 0.03) 1px,
+    rgba(0, 0, 0, 0.03) 2px
+  );
+  pointer-events: none;
+}
+
+/* Neon border */
+.neon-border {
+  position: relative;
+}
+.neon-border::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  border-radius: inherit;
+  opacity: 0.5;
+  filter: blur(8px);
+  z-index: -1;
+}
+
+/* Slide in from right animation */
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out;
+}
+
+/* Scale up animation */
+@keyframes scale-up {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-scale-up {
+  animation: scale-up 0.2s ease-out;
+}
+
+/* Rotate animation for icon ring */
+@keyframes rotate-icons {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Hide Next.js dev indicator */
+[data-nextjs-dialog-root],
+[data-nextjs-dialog-overlay],
+body > nextjs-portal,
+#__next-build-watcher,
+nextjs-portal,
+[data-next-indicator-root],
+[data-next-error-not-found],
+[data-next-hide-fouc],
+#__next-route-announcer__,
+div[style*="position: fixed"][style*="bottom"] > button[style*="cursor: pointer"],
+body > div:last-child > button,
+body > div[style*="position: fixed"][style*="z-index: 999"] {
+  display: none !important;
+}
+
+/* Specifically target the N logo dev indicator */
+body > div:not(#__next) > button,
+body > :is(div, span):has(> button:only-child),
+[data-nextjs-scroll-focus-boundary] ~ div {
+  display: none !important;
 }
