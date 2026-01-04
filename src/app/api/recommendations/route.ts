@@ -72,12 +72,12 @@ export async function GET(request: NextRequest) {
           { status: 503 }
         );
       }
-      const supabase = await createClient();
+    const supabase = await createClient();
       const {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
     }
 
@@ -162,12 +162,12 @@ export async function PATCH(request: NextRequest) {
           { status: 503 }
         );
       }
-      const supabase = await createClient();
+    const supabase = await createClient();
       const {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
     }
 

@@ -191,7 +191,7 @@ const mockTemplates: CalendarTemplate[] = [
       {
         title: 'Meditation',
         description: '10 minutes of mindfulness',
-        aspect: 'health',
+        aspect: 'training',
         type: 'personal',
         duration_minutes: 10,
         relative_days: 0,
@@ -1030,3 +1030,10 @@ function ObjectivesView({ objectives }: { objectives: MonthlyObjective[] }) {
     </div>
   );
 }
+
+
+
+
+
+
+

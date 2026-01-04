@@ -9,5 +9,6 @@ export { Family } from './Family';
 export { Friends } from './Friends';
 export { Events } from './Events';
 export { Settings } from './Settings';
+export { Music } from './Music';
 export { AspectLayout, EmptyState, ItemCard } from './AspectLayout';
 

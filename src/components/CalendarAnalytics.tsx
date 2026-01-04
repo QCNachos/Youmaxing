@@ -155,7 +155,7 @@ const mockAspectBreakdown = [
   { aspect: 'friends', hours: 4.8, percentage: 12, color: '#F97316' },
   { aspect: 'food', hours: 3.5, percentage: 9, color: '#4ECDC4' },
   { aspect: 'finance', hours: 2.8, percentage: 7, color: '#22C55E' },
-  { aspect: 'learning', hours: 2.7, percentage: 7, color: '#A855F7' },
+  { aspect: 'business', hours: 2.7, percentage: 7, color: '#A855F7' },
   { aspect: 'other', hours: 0.0, percentage: 1, color: '#6B7280' }
 ];
 
@@ -821,3 +821,10 @@ export function CalendarAnalytics() {
     </div>
   );
 }
+
+
+
+
+
+
+

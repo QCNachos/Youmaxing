@@ -203,3 +203,10 @@ GRANT INSERT, UPDATE ON twitter_trends TO service_role;
 GRANT INSERT, UPDATE ON trend_recommendations TO service_role;
 GRANT INSERT ON ai_recommendations TO service_role;
 
+
+
+
+
+
+
+

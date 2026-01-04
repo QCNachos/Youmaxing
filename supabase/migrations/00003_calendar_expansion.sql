@@ -594,3 +594,10 @@ INSERT INTO template_events (template_id, title, description, aspect_id, type, d
   ((SELECT id FROM calendar_templates WHERE name = 'Morning Routine'), 'Healthy Breakfast', 'Nutritious morning meal', 'nutrition', 'personal', 20, 0, '08:15', 'medium'),
   ((SELECT id FROM calendar_templates WHERE name = 'Weekly Review'), 'Weekly Goals Review', 'Assess progress on weekly objectives', 'learning', 'personal', 30, 0, '19:00', 'high'),
   ((SELECT id FROM calendar_templates WHERE name = 'Weekly Review'), 'Next Week Planning', 'Plan objectives for the coming week', 'business', 'personal', 45, 0, '19:45', 'high');
+
+
+
+
+
+
+

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -21,49 +22,18 @@ import {
   Calendar as CalendarIcon,
   User,
   Briefcase,
+  ExternalLink,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { format, isSameDay, addDays } from 'date-fns';
 import { aspects } from '@/lib/aspects';
 import type { AspectType } from '@/types/database';
-
-type CalendarEvent = {
-  id: string;
-  title: string;
-  description?: string;
-  aspect: AspectType;
-  type: 'personal' | 'job';
-  date: Date;
-  time?: string;
-  priority: 'low' | 'medium' | 'high';
-  status: 'scheduled' | 'completed' | 'cancelled';
-};
-
-type DailyTask = {
-  id: string;
-  title: string;
-  aspect: AspectType;
-  type: 'personal' | 'job';
-  status: 'pending' | 'in_progress' | 'completed';
-  priority: 'low' | 'medium' | 'high';
-  date: Date;
-};
-
-// Mock events for demo
-const mockEvents: CalendarEvent[] = [
-  { id: '1', title: 'Gym Session', aspect: 'training', type: 'personal', date: new Date(), time: '07:00', priority: 'high', status: 'scheduled' },
-  { id: '2', title: 'Dinner with Alex', aspect: 'friends', type: 'personal', date: new Date(), time: '19:00', priority: 'medium', status: 'scheduled' },
-  { id: '3', title: 'Project Review', aspect: 'business', type: 'job', date: addDays(new Date(), 1), time: '14:00', priority: 'high', status: 'scheduled' },
-  { id: '4', title: 'Team Standup', aspect: 'business', type: 'job', date: new Date(), time: '09:00', priority: 'medium', status: 'completed' },
-  { id: '5', title: 'Meal Prep', aspect: 'food', type: 'personal', date: addDays(new Date(), 2), time: '18:00', priority: 'low', status: 'scheduled' },
-];
-
-const mockTasks: DailyTask[] = [
-  { id: 't1', title: 'Review design mockups', aspect: 'business', type: 'job', status: 'completed', priority: 'high', date: new Date() },
-  { id: 't2', title: 'Upper body workout', aspect: 'training', type: 'personal', status: 'in_progress', priority: 'medium', date: new Date() },
-  { id: 't3', title: 'Call mom', aspect: 'family', type: 'personal', status: 'pending', priority: 'low', date: new Date() },
-  { id: 't4', title: 'Finish report', aspect: 'business', type: 'job', status: 'pending', priority: 'high', date: new Date() },
-];
+import { 
+  generateUnifiedEvents, 
+  generateDailyTasks,
+  type CalendarEvent,
+  type DailyTask,
+} from '@/lib/unifiedCalendar';
 
 const mockObjectives = {
   monthly: [
@@ -77,13 +47,29 @@ const mockObjectives = {
 };
 
 export function CalendarSidebar() {
+  const router = useRouter();
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [events, setEvents] = useState<CalendarEvent[]>(mockEvents);
-  const [tasks, setTasks] = useState<DailyTask[]>(mockTasks);
   const [isAddingEvent, setIsAddingEvent] = useState(false);
   const [activeTab, setActiveTab] = useState<'events' | 'tasks' | 'objectives'>('events');
   const [typeFilter, setTypeFilter] = useState<'all' | 'personal' | 'job'>('all');
+  const [manualEvents, setManualEvents] = useState<CalendarEvent[]>([]);
+  const [taskStatuses, setTaskStatuses] = useState<Record<string, 'pending' | 'in_progress' | 'completed'>>({});
+
+  // Generate unified events from all mini-apps + manual events
+  const events = useMemo(() => {
+    const unified = generateUnifiedEvents();
+    return [...unified, ...manualEvents];
+  }, [manualEvents]);
+
+  // Generate tasks with status overrides
+  const tasks = useMemo(() => {
+    const unified = generateDailyTasks();
+    return unified.map(task => ({
+      ...task,
+      status: taskStatuses[task.id] || task.status,
+    }));
+  }, [taskStatuses]);
 
   const [newEvent, setNewEvent] = useState({
     title: '',
@@ -125,18 +111,16 @@ export function CalendarSidebar() {
   };
 
   const toggleTaskStatus = (taskId: string) => {
-    setTasks(tasks.map(task => {
-      if (task.id === taskId) {
-        const newStatus = task.status === 'completed' ? 'pending' : 'completed';
-        return { ...task, status: newStatus };
-      }
-      return task;
-    }));
+    setTaskStatuses(prev => {
+      const currentStatus = prev[taskId] || tasks.find(t => t.id === taskId)?.status || 'pending';
+      const newStatus = currentStatus === 'completed' ? 'pending' : 'completed';
+      return { ...prev, [taskId]: newStatus };
+    });
   };
 
   const addEvent = () => {
     const event: CalendarEvent = {
-      id: Date.now().toString(),
+      id: `manual-${Date.now()}`,
       title: newEvent.title,
       description: newEvent.description,
       aspect: newEvent.aspect,
@@ -144,9 +128,10 @@ export function CalendarSidebar() {
       date: date || new Date(),
       time: newEvent.time,
       priority: newEvent.priority,
-      status: 'scheduled'
+      status: 'scheduled',
+      source: 'manual',
     };
-    setEvents([...events, event]);
+    setManualEvents([...manualEvents, event]);
     setIsAddingEvent(false);
     setNewEvent({
       title: '',
@@ -156,6 +141,13 @@ export function CalendarSidebar() {
       time: '',
       priority: 'medium'
     });
+  };
+
+  // Navigate to aspect mini-app
+  const goToAspect = (aspectId: AspectType) => {
+    if (aspectId !== 'settings') {
+      router.push(`/${aspectId}`);
+    }
   };
 
   // Calculate stats
@@ -287,19 +279,20 @@ export function CalendarSidebar() {
                 {todayEvents.map((event) => (
                   <div
                     key={event.id}
-                    className="p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors cursor-pointer border border-transparent hover:border-border"
+                    onClick={() => goToAspect(event.aspect)}
+                    className="p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors cursor-pointer border border-transparent hover:border-border group"
                   >
                     <div className="flex items-start gap-3">
-                      <div
-                        className="w-2.5 h-2.5 rounded-full mt-1.5 flex-shrink-0"
-                        style={{ backgroundColor: getAspectColor(event.aspect) }}
-                      />
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-lg" style={{ backgroundColor: `${getAspectColor(event.aspect)}15` }}>
+                        {event.emoji || '📅'}
+                      </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <p className="font-medium text-sm">{event.title}</p>
                           {event.status === 'completed' && (
                             <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
                           )}
+                          <ExternalLink className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity ml-auto" />
                         </div>
                         <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                           {event.time && (

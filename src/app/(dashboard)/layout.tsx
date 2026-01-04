@@ -1,13 +1,16 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { CalendarSidebar } from '@/components/CalendarSidebar';
 import { AvatarWithRing } from '@/components/3d/AvatarWithRing';
 import { GlobalChat } from '@/components/GlobalChat';
 import { MiniAppDashboard } from '@/components/MiniAppDashboard';
+import { ProactiveChat } from '@/components/ProactiveChat';
 import { SettingsMenu } from '@/components/SettingsMenu';
 import { EarnPanel } from '@/components/EarnPanel';
 import { PremiumPanel } from '@/components/PremiumPanel';
+import { AppStore } from '@/components/AppStore';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -41,6 +44,9 @@ import {
   BatteryLow,
   BatteryFull,
   Expand,
+  MessageCircle,
+  LayoutGrid,
+  Store,
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
@@ -728,12 +734,20 @@ function ExpandedCalendarView() {
 }
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { currentAspect, setCurrentAspect, theme } = useAppStore();
+  const router = useRouter();
+  const { currentAspect, setCurrentAspect, theme, viewMode, toggleViewMode } = useAppStore();
   const [calendarOpen, setCalendarOpen] = useState(true); // Calendar visible by default
   const [calendarExpanded, setCalendarExpanded] = useState(false); // Full-screen calendar dialog
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [earnOpen, setEarnOpen] = useState(false);
   const [premiumOpen, setPremiumOpen] = useState(false);
+  const [appStoreOpen, setAppStoreOpen] = useState(false);
+
+  // Navigate to mini-app page
+  const goToMiniApp = (aspectId: string) => {
+    setCurrentAspect(aspectId as any);
+    router.push(`/${aspectId}`);
+  };
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-background relative">
@@ -778,7 +792,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 return (
                   <button
                     key={aspect.id}
-                    onClick={() => setCurrentAspect(aspect.id)}
+                    onClick={() => goToMiniApp(aspect.id)}
+                    title={`Open ${aspect.name}`}
                     className={cn(
                       'w-full p-2.5 rounded-xl flex items-center justify-center transition-all duration-300 group relative',
                       isActive
@@ -819,6 +834,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           {/* Bottom Actions */}
           <div className={cn("p-2 border-t space-y-1", theme === 'light' ? "border-violet-100" : "border-border/20")}>
+            {/* App Store Button */}
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "w-full rounded-xl group relative",
+                appStoreOpen
+                  ? theme === 'light'
+                    ? "bg-pink-100 text-pink-600"
+                    : "bg-pink-500/20 text-pink-400"
+                  : theme === 'light' 
+                    ? "text-slate-400 hover:text-pink-600 hover:bg-pink-50"
+                    : "text-muted-foreground hover:text-pink-400 hover:bg-pink-500/10"
+              )}
+              onClick={() => setAppStoreOpen(true)}
+            >
+              <Store className="h-5 w-5" />
+              {/* Tooltip */}
+              <span className="absolute left-full ml-2 px-2.5 py-1 bg-popover/90 backdrop-blur-xl text-popover-foreground text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-all whitespace-nowrap z-50 pointer-events-none border border-border shadow-xl">
+                App Store
+              </span>
+            </Button>
+            
+            {/* Calendar Button */}
             <Button
               variant="ghost"
               size="icon"
@@ -886,33 +925,78 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Main Content Area */}
         <div className="flex-1 flex flex-col h-full overflow-hidden relative">
-          {/* Theme Toggle - Top Right */}
-          <div className="absolute top-4 right-4 z-10">
+          {/* Top Controls - Theme Toggle & View Toggle */}
+          <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+            {/* View Mode Toggle */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={toggleViewMode}
+              className={cn(
+                "h-9 gap-2 backdrop-blur-sm",
+                theme === 'light'
+                  ? "bg-white/80 border-violet-200/50 hover:bg-violet-50"
+                  : "bg-card/50 border-border/50 hover:bg-muted"
+              )}
+              title={viewMode === 'chat' ? 'Switch to Dashboard' : 'Switch to Chat'}
+            >
+              {viewMode === 'chat' ? (
+                <>
+                  <LayoutGrid className="h-4 w-4" />
+                  <span className="text-xs">Dashboard</span>
+                </>
+              ) : (
+                <>
+                  <MessageCircle className="h-4 w-4" />
+                  <span className="text-xs">Chat</span>
+                </>
+              )}
+            </Button>
             <ThemeToggle />
           </div>
 
-          {/* Top Section - Avatar with Icon Ring */}
+          {/* Top Section - Avatar with Icon Ring (same size in both modes) */}
           <div className="flex-shrink-0">
             <AvatarWithRing />
           </div>
 
-          {/* Bottom Section - Dashboard + Chat Split */}
-          <div className="flex-1 flex gap-4 p-4 pt-0 overflow-hidden min-h-0">
-            {/* Mini-App Dashboard - Left Side */}
-            <div className={cn(
-              "flex-1 backdrop-blur-sm rounded-3xl border overflow-hidden transition-all duration-300",
-              theme === 'light'
-                ? "bg-white/60 border-violet-200/40 shadow-lg shadow-violet-200/20"
-                : "bg-card/20 border-border/20"
-            )}>
-              <MiniAppDashboard />
+          {/* Bottom Section - View Mode Dependent */}
+          {viewMode === 'chat' ? (
+            /* Chat-First View - Full Width Global Chat */
+            <div className="flex-1 p-4 pt-0 overflow-hidden min-h-0">
+              <div className={cn(
+                "h-full backdrop-blur-sm rounded-3xl border overflow-hidden transition-all duration-300",
+                theme === 'light'
+                  ? "bg-white/60 border-violet-200/40 shadow-lg shadow-violet-200/20"
+                  : "bg-card/20 border-border/20"
+              )}>
+                <ProactiveChat mode="global" />
+              </div>
             </div>
+          ) : (
+            /* Dashboard View - Split Layout */
+            <div className="flex-1 flex gap-4 p-4 pt-0 overflow-hidden min-h-0">
+              {/* Mini-App Dashboard - Left Side */}
+              <div className={cn(
+                "flex-1 backdrop-blur-sm rounded-3xl border overflow-hidden transition-all duration-300",
+                theme === 'light'
+                  ? "bg-white/60 border-violet-200/40 shadow-lg shadow-violet-200/20"
+                  : "bg-card/20 border-border/20"
+              )}>
+                <MiniAppDashboard />
+              </div>
 
-            {/* Global Chat - Right Side */}
-            <div className="w-[360px] flex-shrink-0">
-              <GlobalChat />
+              {/* Global Chat - Right Side */}
+              <div className={cn(
+                "w-[360px] flex-shrink-0 backdrop-blur-sm rounded-3xl border overflow-hidden",
+                theme === 'light'
+                  ? "bg-white/60 border-violet-200/40 shadow-lg shadow-violet-200/20"
+                  : "bg-card/20 border-border/20"
+              )}>
+                <ProactiveChat mode="global" />
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Calendar Sidebar - Always visible on right side (wider) */}
@@ -1039,6 +1123,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <PremiumPanel 
           isOpen={premiumOpen} 
           onClose={() => setPremiumOpen(false)} 
+        />
+
+        {/* App Store */}
+        <AppStore 
+          open={appStoreOpen} 
+          onOpenChange={setAppStoreOpen}
+          onAppSelect={(slug) => {
+            // Navigate to the app or handle it
+            console.log('App selected:', slug);
+          }}
         />
       </div>
       

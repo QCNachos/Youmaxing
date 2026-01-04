@@ -52,7 +52,7 @@ import { Button } from '@/components/ui/button';
 
 interface QuickAction {
   label: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
   description: string;
   color: string;
   points?: number;

@@ -34,6 +34,7 @@ export interface UserPreferences {
   daily_message_count: number;
   notifications_enabled: boolean;
   onboarding_completed: boolean;
+  country_code: string; // For streaming availability lookup
   created_at: string;
 }
 
@@ -145,6 +146,31 @@ export interface SportsActivity {
   created_at: string;
 }
 
+// Film/Series tier system
+export type FilmTier = 
+  | 'legendary' 
+  | 'amazing' 
+  | 'very_good' 
+  | 'good' 
+  | 'okay' 
+  | 'not_good' 
+  | 'not_interested';
+
+// Streaming provider info from TMDB
+export interface StreamingProvider {
+  provider_id: number;
+  provider_name: string;
+  logo_path: string;
+  display_priority: number;
+}
+
+export interface StreamingProviders {
+  flatrate?: StreamingProvider[];  // Subscription streaming
+  rent?: StreamingProvider[];      // Rent
+  buy?: StreamingProvider[];       // Buy
+  free?: StreamingProvider[];      // Free with ads
+}
+
 export interface WatchlistItem {
   id: string;
   user_id: string;
@@ -153,6 +179,15 @@ export interface WatchlistItem {
   status: 'want_to_watch' | 'watching' | 'watched';
   rating: number | null;
   notes: string | null;
+  // Enhanced fields
+  tmdb_id: number | null;
+  tier: FilmTier | null;
+  franchise: string | null;
+  poster_url: string | null;
+  streaming_providers: StreamingProviders | null;
+  genres: string[] | null;
+  release_year: number | null;
+  last_provider_check: string | null;
   created_at: string;
 }
 
@@ -221,6 +256,156 @@ export interface CalendarEvent {
   end_date: string | null;
   all_day: boolean;
   created_at: string;
+}
+
+// =====================================================
+// APP STORE
+// =====================================================
+
+export type AppCategory = 'entertainment' | 'lifestyle' | 'productivity' | 'social';
+
+export interface AspectApp {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  icon: string;
+  color: string;
+  gradient: string;
+  category: AppCategory;
+  is_active: boolean;
+  requires_oauth: string[];
+  created_at: string;
+}
+
+export interface UserInstalledApp {
+  id: string;
+  user_id: string;
+  app_slug: string;
+  settings: Record<string, unknown>;
+  oauth_tokens: Record<string, unknown> | null;
+  is_connected: boolean;
+  installed_at: string;
+}
+
+// =====================================================
+// SOCIAL LAYER
+// =====================================================
+
+export type FriendshipStatus = 'pending' | 'accepted' | 'blocked';
+
+export interface Friendship {
+  id: string;
+  user_id: string;
+  friend_id: string;
+  status: FriendshipStatus;
+  created_at: string;
+  accepted_at: string | null;
+}
+
+export type ListVisibility = 'private' | 'friends' | 'public';
+export type ListType = 'films' | 'music' | 'custom';
+
+export interface SharedList {
+  id: string;
+  owner_id: string;
+  title: string;
+  description: string | null;
+  list_type: ListType;
+  visibility: ListVisibility;
+  items: Array<{ id: string; title: string; tier?: FilmTier }>;
+  likes_count: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ListShare {
+  id: string;
+  list_id: string;
+  shared_with_id: string;
+  message: string | null;
+  shared_at: string;
+  viewed_at: string | null;
+}
+
+export type FeedType = 'list_shared' | 'recommendation' | 'achievement' | 'tip_received' | 'friend_added';
+
+export interface SocialFeedItem {
+  id: string;
+  user_id: string;
+  feed_type: FeedType;
+  content: Record<string, unknown>;
+  source_user_id: string | null;
+  related_id: string | null;
+  is_read: boolean;
+  created_at: string;
+}
+
+// =====================================================
+// POINTS ECONOMY
+// =====================================================
+
+export interface UserPoints {
+  id: string;
+  user_id: string;
+  balance: number;
+  lifetime_earned: number;
+  lifetime_spent: number;
+  updated_at: string;
+}
+
+export type PointTransactionType = 
+  | 'daily_login'
+  | 'rate_item'
+  | 'share_list'
+  | 'receive_tip'
+  | 'give_tip'
+  | 'unlock_feature'
+  | 'add_friend'
+  | 'complete_watchlist'
+  | 'signup_bonus'
+  | 'referral';
+
+export interface PointTransaction {
+  id: string;
+  user_id: string;
+  amount: number;
+  transaction_type: PointTransactionType;
+  description: string | null;
+  related_user_id: string | null;
+  related_item_id: string | null;
+  created_at: string;
+}
+
+export interface PointRule {
+  id: string;
+  action: string;
+  points: number;
+  daily_limit: number | null;
+  description: string | null;
+  is_active: boolean;
+}
+
+// =====================================================
+// MUSIC LIBRARY
+// =====================================================
+
+export type MusicItemType = 'track' | 'album' | 'playlist' | 'artist';
+
+export interface MusicLibraryItem {
+  id: string;
+  user_id: string;
+  spotify_id: string | null;
+  title: string;
+  artist: string;
+  album: string | null;
+  type: MusicItemType;
+  tier: FilmTier | null;
+  cover_url: string | null;
+  preview_url: string | null;
+  genres: string[] | null;
+  release_year: number | null;
+  added_at: string;
 }
 
 // Database schema type for Supabase

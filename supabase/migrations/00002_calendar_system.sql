@@ -370,3 +370,10 @@ GRANT INSERT, UPDATE ON monthly_objectives TO service_role;
 GRANT INSERT, UPDATE ON weekly_objectives TO service_role;
 GRANT INSERT, UPDATE ON daily_tasks TO service_role;
 GRANT INSERT, UPDATE ON calendar_events TO service_role;
+
+
+
+
+
+
+

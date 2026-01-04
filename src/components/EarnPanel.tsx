@@ -26,6 +26,7 @@ import {
   Crown,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAppStore } from '@/lib/store';
 
 interface EarnPanelProps {
   isOpen: boolean;
@@ -37,7 +38,7 @@ interface EarnTask {
   title: string;
   description: string;
   points: number;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
   color: string;
   category: 'connect' | 'daily' | 'achievement' | 'referral';
   completed: boolean;
@@ -193,18 +194,19 @@ const categories = [
 ];
 
 export function EarnPanel({ isOpen, onClose }: EarnPanelProps) {
+  const { theme } = useAppStore();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [tasks, setTasks] = useState(mockTasks);
 
   const totalPoints = tasks.filter(t => t.completed).reduce((sum, t) => sum + t.points, 0);
   const pendingPoints = tasks.filter(t => !t.completed).reduce((sum, t) => sum + t.points, 0);
 
-  const filteredTasks = selectedCategory === 'all' 
-    ? tasks 
+  const filteredTasks = selectedCategory === 'all'
+    ? tasks
     : tasks.filter(t => t.category === selectedCategory);
 
   const handleTaskAction = (taskId: string) => {
-    setTasks(prev => prev.map(t => 
+    setTasks(prev => prev.map(t =>
       t.id === taskId ? { ...t, completed: true } : t
     ));
   };
@@ -214,13 +216,21 @@ export function EarnPanel({ isOpen, onClose }: EarnPanelProps) {
   return (
     <>
       {/* Backdrop */}
-      <div 
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 transition-opacity"
+      <div
+        className={cn(
+          "fixed inset-0 backdrop-blur-sm z-50 transition-opacity",
+          theme === 'light' ? "bg-black/20" : "bg-black/60"
+        )}
         onClick={onClose}
       />
-      
+
       {/* Panel */}
-      <div className="fixed inset-y-0 left-16 w-[420px] bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 z-50 shadow-2xl border-r border-white/10 overflow-hidden">
+      <div className={cn(
+        "fixed inset-y-0 left-16 w-[420px] z-50 shadow-2xl border-r overflow-hidden",
+        theme === 'light'
+          ? "bg-gradient-to-b from-amber-50 via-white to-orange-50/50 border-amber-200/50"
+          : "bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 border-white/10"
+      )}>
         {/* Header with gradient */}
         <div className="relative overflow-hidden">
           {/* Decorative background */}
@@ -404,4 +414,11 @@ export function EarnPanel({ isOpen, onClose }: EarnPanelProps) {
     </>
   );
 }
+
+
+
+
+
+
+
 

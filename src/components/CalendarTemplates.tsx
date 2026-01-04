@@ -107,7 +107,7 @@ const mockTemplates: CalendarTemplate[] = [
         id: 'meditation',
         title: 'Morning Meditation',
         description: '10 minutes of mindfulness meditation',
-        aspect: 'health',
+        aspect: 'training',
         type: 'personal',
         duration_minutes: 10,
         relative_days: 0,
@@ -268,7 +268,7 @@ const mockTemplates: CalendarTemplate[] = [
         id: 'reflection',
         title: 'Week Reflection',
         description: 'Review accomplishments, challenges, and lessons learned',
-        aspect: 'learning',
+        aspect: 'business',
         type: 'personal',
         duration_minutes: 45,
         relative_days: 0,
@@ -819,3 +819,10 @@ export function CalendarTemplates({ onApplyTemplate }: {
     </div>
   );
 }
+
+
+
+
+
+
+
