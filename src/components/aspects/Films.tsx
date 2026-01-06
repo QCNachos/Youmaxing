@@ -36,6 +36,8 @@ import {
   X,
 } from 'lucide-react';
 import type { WatchlistItem, FilmTier } from '@/types/database';
+import type { AnalysisPlatform } from '@/lib/insight-agent/types';
+import { InsightPermissions, InsightSourcesBadge } from './InsightPermissions';
 
 // Tier configuration with colors and icons
 const tierConfig: Record<FilmTier, { label: string; color: string; bgColor: string; icon: typeof Crown }> = {
@@ -177,6 +179,18 @@ export function Films() {
   const [loadingProviders, setLoadingProviders] = useState(false);
   const [filterTier, setFilterTier] = useState<FilmTier | 'all'>('all');
   const [filterFranchise, setFilterFranchise] = useState<string | 'all'>('all');
+  
+  // Insight Agent state
+  const [enabledPlatforms, setEnabledPlatforms] = useState<AnalysisPlatform[]>(['netflix', 'youtube']);
+  const [hasClaudeCode, setHasClaudeCode] = useState(false);
+  
+  const togglePlatform = (platform: AnalysisPlatform) => {
+    setEnabledPlatforms(prev => 
+      prev.includes(platform)
+        ? prev.filter(p => p !== platform)
+        : [...prev, platform]
+    );
+  };
   
   const [newItem, setNewItem] = useState<{
     title: string;
@@ -451,35 +465,46 @@ export function Films() {
       onAddNew={() => setIsAddingItem(true)}
       addNewLabel="Add to Watchlist"
     >
-      {/* Filters */}
-      <div className="flex gap-2 mb-4">
-        <Select value={filterTier} onValueChange={(v) => setFilterTier(v as FilmTier | 'all')}>
-          <SelectTrigger className="w-[140px]">
-            <SelectValue placeholder="All Tiers" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Tiers</SelectItem>
-            {Object.entries(tierConfig).map(([tier, config]) => (
-              <SelectItem key={tier} value={tier}>
-                <span style={{ color: config.color }}>{config.label}</span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      {/* Filters & Data Sources */}
+      <div className="flex items-center justify-between gap-2 mb-4">
+        <div className="flex gap-2">
+          <Select value={filterTier} onValueChange={(v) => setFilterTier(v as FilmTier | 'all')}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="All Tiers" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Tiers</SelectItem>
+              {Object.entries(tierConfig).map(([tier, config]) => (
+                <SelectItem key={tier} value={tier}>
+                  <span style={{ color: config.color }}>{config.label}</span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          
+          <Select value={filterFranchise} onValueChange={setFilterFranchise}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="All Franchises" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Franchises</SelectItem>
+              {franchises.map((f) => (
+                <SelectItem key={f} value={f}>
+                  {franchiseLabels[f] || f}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
         
-        <Select value={filterFranchise} onValueChange={setFilterFranchise}>
-          <SelectTrigger className="w-[160px]">
-            <SelectValue placeholder="All Franchises" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Franchises</SelectItem>
-            {franchises.map((f) => (
-              <SelectItem key={f} value={f}>
-                {franchiseLabels[f] || f}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {/* AI Data Sources - compact button that opens dialog */}
+        <InsightPermissions
+          aspect="films"
+          enabledPlatforms={enabledPlatforms}
+          onTogglePlatform={togglePlatform}
+          hasClaudeCode={hasClaudeCode}
+          compact
+        />
       </div>
 
       <Tabs defaultValue="library" className="w-full">
@@ -584,10 +609,10 @@ export function Films() {
                       <Plus className="h-4 w-4 mr-1" />
                       Add
                     </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
           </div>
         </TabsContent>
       </Tabs>
@@ -684,14 +709,14 @@ export function Films() {
 
             {/* Title (for manual entry) */}
             {!selectedResult && (
-              <div className="space-y-2">
-                <Label>Title</Label>
-                <Input
-                  placeholder="Movie or series name"
-                  value={newItem.title}
-                  onChange={(e) => setNewItem({ ...newItem, title: e.target.value })}
-                />
-              </div>
+            <div className="space-y-2">
+              <Label>Title</Label>
+              <Input
+                placeholder="Movie or series name"
+                value={newItem.title}
+                onChange={(e) => setNewItem({ ...newItem, title: e.target.value })}
+              />
+            </div>
             )}
 
             {/* Streaming availability */}

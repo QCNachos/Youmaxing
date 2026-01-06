@@ -94,7 +94,8 @@ CREATE TABLE daily_tasks (
   actual_duration_minutes integer,
   completed_at timestamptz,
   created_at timestamptz DEFAULT now(),
-  updated_at timestamptz DEFAULT now()
+  updated_at timestamptz DEFAULT now(),
+  UNIQUE(id, user_id)
 );
 
 -- =====================================================
@@ -370,6 +371,8 @@ GRANT INSERT, UPDATE ON monthly_objectives TO service_role;
 GRANT INSERT, UPDATE ON weekly_objectives TO service_role;
 GRANT INSERT, UPDATE ON daily_tasks TO service_role;
 GRANT INSERT, UPDATE ON calendar_events TO service_role;
+
+
 
 
 

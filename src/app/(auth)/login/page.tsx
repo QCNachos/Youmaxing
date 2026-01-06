@@ -25,15 +25,32 @@ export default function LoginPage() {
 
     try {
       const supabase = createClient();
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) {
-        toast.error(error.message);
-      } else {
-        router.push('/dashboard');
+        // Better error messages
+        if (error.message.includes('Email not confirmed')) {
+          toast.error('Please verify your email before signing in. Check your inbox for the verification link.');
+        } else if (error.message.includes('Invalid login credentials')) {
+          toast.error('Invalid email or password. Please try again.');
+        } else {
+          toast.error(error.message);
+        }
+      } else if (data.user) {
+        // Check if user has completed onboarding
+        const { data: preferences } = await supabase
+          .from('user_preferences')
+          .select('onboarding_completed')
+          .single<{ onboarding_completed: boolean }>();
+
+        if (preferences && !preferences.onboarding_completed) {
+          router.push('/onboarding');
+        } else {
+          router.push('/dashboard');
+        }
       }
     } catch {
       toast.error('Something went wrong. Please try again.');

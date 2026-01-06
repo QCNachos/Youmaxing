@@ -128,6 +128,61 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 ---
 
+## 🧠 Insight Agent (Claude Code Browser Analysis)
+
+### Overview
+For users with Claude Code, the Insight Agent can browse their logged-in accounts (Facebook, Netflix, LinkedIn, etc.) to extract **insights** (not raw data) that power personalized recommendations.
+
+### Setup
+- [ ] **Run migration 00007_insight_agent.sql** - Creates tables for insights
+
+### How It Works
+1. User enables "I have Claude Code" toggle
+2. User selects platforms to analyze (Facebook, Netflix, LinkedIn, etc.)
+3. User clicks "Analyze" → gets instructions to paste in Claude
+4. Claude browses each platform using user's logged-in sessions
+5. Claude extracts HIGH-LEVEL insights (interests, preferences, patterns)
+6. Insights are sent to `/api/insights/ingest`
+7. Profile is built → powers recommendations across all mini-apps
+
+### Where to Control Permissions
+
+1. **Global Settings** → `/settings` → Insight Agent tab
+   - Enable/disable Claude Code
+   - Select all platforms to analyze
+   - Set auto-refresh frequency
+   - Choose privacy level (minimal/standard/detailed)
+   - View insights, clear data
+
+2. **Per Mini-App** → Each mini-app has a brain icon for quick access
+   - Films → Netflix, Prime Video, YouTube, Spotify
+   - Training → Strava, MyFitnessPal, Google Calendar
+   - Business → LinkedIn, Google Drive, Gmail, Notion
+   - Friends/Family → Facebook, Instagram
+   - Travel → Instagram, Gmail (bookings)
+   - Finance → Mint, Robinhood
+
+### Privacy Model
+- **Never stored**: Personal data, names, messages, financial specifics
+- **Only stored**: Derived insights ("interested in hiking", "prefers sci-fi")
+- **User control**: Choose which platforms to analyze per aspect
+
+### For Users WITHOUT Claude Code
+- Quick survey/questionnaire
+- Manual preference rating
+- OAuth integrations where available (Spotify, etc.)
+
+### Files
+- `/src/lib/insight-agent/` - Types, prompts, recommendation engine
+- `/src/components/InsightAgent.tsx` - Full UI component
+- `/src/components/settings/InsightAgentSettings.tsx` - Settings page section
+- `/src/components/aspects/InsightPermissions.tsx` - Per-mini-app controls
+- `/src/app/(dashboard)/settings/page.tsx` - Settings page
+- `/src/app/api/insights/ingest/route.ts` - API to receive insights
+- `/supabase/migrations/00007_insight_agent.sql` - Database schema
+
+---
+
 ## 📝 User's Film Ratings Reference
 
 From the original request, the user provided their tier ratings:

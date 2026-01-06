@@ -474,3 +474,4 @@ GRANT INSERT, UPDATE ON user_points TO service_role;
 GRANT INSERT ON point_transactions TO service_role;
 GRANT INSERT ON social_feed TO service_role;
 
+

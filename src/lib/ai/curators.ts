@@ -295,3 +295,5 @@ export function formatInsightWithAttribution(insight: CuratedInsight): string {
   return `"${insight.content}" — ${leader.name}`;
 }
 
+
+

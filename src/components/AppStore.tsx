@@ -328,3 +328,4 @@ export function AppStore({ open, onOpenChange, onAppSelect }: AppStoreProps) {
   );
 }
 
+

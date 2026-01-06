@@ -11,8 +11,6 @@ export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get('code');
   const next = requestUrl.searchParams.get('next');
-  const redirectPath =
-    next && isSafeInternalRedirectPath(next) ? next : '/dashboard';
 
   if (code) {
     const supabase = await createClient();
@@ -22,10 +20,25 @@ export async function GET(request: Request) {
       url.searchParams.set('error', 'oauth_callback_failed');
       return NextResponse.redirect(url);
     }
+
+    // Check if user has completed onboarding
+    const { data: preferences } = await supabase
+      .from('user_preferences')
+      .select('onboarding_completed')
+      .single<{ onboarding_completed: boolean }>();
+
+    // Redirect to onboarding if not completed
+    if (preferences && !preferences.onboarding_completed) {
+      return NextResponse.redirect(new URL('/onboarding', requestUrl.origin));
+    }
+
+    // Use custom redirect or dashboard
+    const redirectPath =
+      next && isSafeInternalRedirectPath(next) ? next : '/dashboard';
+    return NextResponse.redirect(new URL(redirectPath, requestUrl.origin));
   }
 
-  // Check if user has completed onboarding
-  // For now, redirect to dashboard
-  return NextResponse.redirect(new URL(redirectPath, requestUrl.origin));
+  // No code, redirect to login
+  return NextResponse.redirect(new URL('/login', requestUrl.origin));
 }
 

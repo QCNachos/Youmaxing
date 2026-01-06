@@ -15,7 +15,8 @@ import { isDemoMode } from '@/lib/env';
 
 export default function SignupPage() {
   const router = useRouter();
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -26,21 +27,33 @@ export default function SignupPage() {
 
     try {
       const supabase = createClient();
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
-            display_name: name,
+            first_name: firstName,
+            last_name: lastName,
+            display_name: `${firstName} ${lastName}`.trim(),
           },
+          emailRedirectTo: `${window.location.origin}/auth/callback?next=/onboarding`,
         },
       });
 
       if (error) {
         toast.error(error.message);
+      } else if (data.user?.identities?.length === 0) {
+        // User already exists
+        toast.error('This email is already registered. Please sign in instead.');
+        router.push('/login');
       } else {
-        toast.success('Account created! Redirecting to onboarding...');
-        router.push('/onboarding');
+        // Check if email confirmation is required
+        toast.success('Account created! Please check your email to verify your account.', {
+          duration: 6000,
+        });
+        toast.info('Click the verification link in your email to continue.', {
+          duration: 6000,
+        });
       }
     } catch {
       toast.error('Something went wrong. Please try again.');
@@ -147,17 +160,31 @@ export default function SignupPage() {
 
             {/* Email Form */}
             <form onSubmit={handleEmailSignup} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Name</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="firstName">First Name</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="firstName"
+                      type="text"
+                      placeholder="First name"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      className="pl-10 h-12"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Last Name</Label>
                   <Input
-                    id="name"
+                    id="lastName"
                     type="text"
-                    placeholder="Your name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="pl-10 h-12"
+                    placeholder="Last name"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    className="h-12"
                     required
                   />
                 </div>

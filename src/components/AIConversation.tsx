@@ -306,3 +306,5 @@ function getAIResponse(input: string, aspectId: string): string {
   return "Got it! I'm analyzing that and will help you optimize. Is there anything specific you'd like to focus on? 🤔";
 }
 
+
+

@@ -414,7 +414,7 @@ RETURNS TABLE (
 ) AS $$
 DECLARE
   pattern_record record;
-  current_date date;
+  v_current_date date;
   instance_count integer := 0;
   max_instances integer;
 BEGIN
@@ -425,51 +425,51 @@ BEGIN
     RETURN;
   END IF;
 
-  current_date := pattern_record.start_date;
+  v_current_date := pattern_record.start_date;
   max_instances := pattern_record.max_occurrences;
 
   -- Generate instances based on pattern type
   CASE pattern_record.pattern_type
     WHEN 'daily' THEN
-      WHILE current_date <= p_end_date AND (max_instances IS NULL OR instance_count < max_instances) LOOP
-        IF current_date >= p_start_date THEN
+      WHILE v_current_date <= p_end_date AND (max_instances IS NULL OR instance_count < max_instances) LOOP
+        IF v_current_date >= p_start_date THEN
           instance_count := instance_count + 1;
-          RETURN QUERY SELECT current_date, instance_count;
+          RETURN QUERY SELECT v_current_date, instance_count;
         END IF;
-        current_date := current_date + (pattern_record.frequency || ' days')::interval;
+        v_current_date := v_current_date + (pattern_record.frequency || ' days')::interval;
       END LOOP;
 
     WHEN 'weekly' THEN
-      WHILE current_date <= p_end_date AND (max_instances IS NULL OR instance_count < max_instances) LOOP
-        IF current_date >= p_start_date AND
+      WHILE v_current_date <= p_end_date AND (max_instances IS NULL OR instance_count < max_instances) LOOP
+        IF v_current_date >= p_start_date AND
            (pattern_record.days_of_week IS NULL OR
-            EXTRACT(DOW FROM current_date) = ANY(pattern_record.days_of_week)) THEN
+            EXTRACT(DOW FROM v_current_date) = ANY(pattern_record.days_of_week)) THEN
           instance_count := instance_count + 1;
-          RETURN QUERY SELECT current_date, instance_count;
+          RETURN QUERY SELECT v_current_date, instance_count;
         END IF;
-        current_date := current_date + (pattern_record.frequency || ' weeks')::interval;
+        v_current_date := v_current_date + (pattern_record.frequency || ' weeks')::interval;
       END LOOP;
 
     WHEN 'monthly' THEN
-      WHILE current_date <= p_end_date AND (max_instances IS NULL OR instance_count < max_instances) LOOP
-        IF current_date >= p_start_date AND
+      WHILE v_current_date <= p_end_date AND (max_instances IS NULL OR instance_count < max_instances) LOOP
+        IF v_current_date >= p_start_date AND
            (pattern_record.days_of_month IS NULL OR
-            EXTRACT(DAY FROM current_date) = ANY(pattern_record.days_of_month)) THEN
+            EXTRACT(DAY FROM v_current_date) = ANY(pattern_record.days_of_month)) THEN
           instance_count := instance_count + 1;
-          RETURN QUERY SELECT current_date, instance_count;
+          RETURN QUERY SELECT v_current_date, instance_count;
         END IF;
-        current_date := current_date + (pattern_record.frequency || ' months')::interval;
+        v_current_date := v_current_date + (pattern_record.frequency || ' months')::interval;
       END LOOP;
 
     WHEN 'yearly' THEN
-      WHILE current_date <= p_end_date AND (max_instances IS NULL OR instance_count < max_instances) LOOP
-        IF current_date >= p_start_date AND
+      WHILE v_current_date <= p_end_date AND (max_instances IS NULL OR instance_count < max_instances) LOOP
+        IF v_current_date >= p_start_date AND
            (pattern_record.months_of_year IS NULL OR
-            EXTRACT(MONTH FROM current_date) = ANY(pattern_record.months_of_year)) THEN
+            EXTRACT(MONTH FROM v_current_date) = ANY(pattern_record.months_of_year)) THEN
           instance_count := instance_count + 1;
-          RETURN QUERY SELECT current_date, instance_count;
+          RETURN QUERY SELECT v_current_date, instance_count;
         END IF;
-        current_date := current_date + (pattern_record.frequency || ' years')::interval;
+        v_current_date := v_current_date + (pattern_record.frequency || ' years')::interval;
       END LOOP;
   END CASE;
 
@@ -590,10 +590,12 @@ INSERT INTO calendar_templates (name, description, category, is_public) VALUES
 -- Insert sample template events
 INSERT INTO template_events (template_id, title, description, aspect_id, type, duration_minutes, relative_days, start_time, priority) VALUES
   ((SELECT id FROM calendar_templates WHERE name = 'Morning Routine'), 'Morning Meditation', '10 minutes of mindfulness', 'health', 'personal', 10, 0, '07:00', 'high'),
-  ((SELECT id FROM calendar_templates WHERE name = 'Morning Routine'), 'Exercise', 'Daily workout session', 'training', 'personal', 45, 0, '07:15', 'high'),
+  ((SELECT id FROM calendar_templates WHERE name = 'Morning Routine'), 'Exercise', 'Daily workout session', 'health', 'personal', 45, 0, '07:15', 'high'),
   ((SELECT id FROM calendar_templates WHERE name = 'Morning Routine'), 'Healthy Breakfast', 'Nutritious morning meal', 'nutrition', 'personal', 20, 0, '08:15', 'medium'),
   ((SELECT id FROM calendar_templates WHERE name = 'Weekly Review'), 'Weekly Goals Review', 'Assess progress on weekly objectives', 'learning', 'personal', 30, 0, '19:00', 'high'),
-  ((SELECT id FROM calendar_templates WHERE name = 'Weekly Review'), 'Next Week Planning', 'Plan objectives for the coming week', 'business', 'personal', 45, 0, '19:45', 'high');
+  ((SELECT id FROM calendar_templates WHERE name = 'Weekly Review'), 'Next Week Planning', 'Plan objectives for the coming week', 'career', 'personal', 45, 0, '19:45', 'high');
+
+
 
 
 

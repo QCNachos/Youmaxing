@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { chat } from '@/lib/ai/client';
+import { routeAIRequest } from '@/lib/ai/router';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { isDemoMode, isSupabaseConfigured } from '@/lib/env';
@@ -65,16 +66,48 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ message: response });
     }
 
-    const response = await chat({
-      provider: provider ?? 'anthropic',
-      tone: tone ?? 'chill',
-      userName,
-      messages,
-    });
+    // Get authenticated user
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-    return NextResponse.json({ message: response });
+    // Use the new AI router with BYOK support
+    try {
+      const result = await routeAIRequest(user.id, messages);
+      return NextResponse.json({ 
+        message: result.message,
+        provider: result.provider,
+        model: result.model,
+      });
+    } catch (error: any) {
+      // Handle specific errors
+      if (error.message === 'QUOTA_EXCEEDED') {
+        return NextResponse.json({
+          error: 'AI quota exceeded',
+          message: 'You\'ve reached your monthly AI message limit. Upgrade to Pro for unlimited messages or add your own API key.',
+          upgradeUrl: '/settings?tab=subscription',
+        }, { status: 429 });
+      } else if (error.message === 'BYOK_KEY_MISSING') {
+        return NextResponse.json({
+          error: 'API key required',
+          message: 'Please add your OpenAI or Anthropic API key in Settings, or upgrade to a paid plan.',
+          settingsUrl: '/settings?tab=api-keys',
+        }, { status: 402 });
+      } else if (error.message === 'SUBSCRIPTION_INACTIVE') {
+        return NextResponse.json({
+          error: 'Subscription inactive',
+          message: 'Your subscription is not active. Please update your payment method.',
+          billingUrl: '/settings?tab=billing',
+        }, { status: 402 });
+      }
+      
+      throw error;
+    }
   } catch (error) {
-    console.error('Chat API error');
+    console.error('Chat API error:', error);
     return NextResponse.json(
       { error: 'Failed to generate response' },
       { status: 500 }

@@ -162,3 +162,4 @@ export const FRANCHISE_MAPPINGS: Record<string, string> = {
   'Vikings: Valhalla': 'vikings',
 };
 
+

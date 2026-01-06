@@ -115,3 +115,5 @@ export function Avatar({ currentAspect, avatarUrl }: AvatarProps) {
   return <DefaultAvatar currentAspect={currentAspect} />;
 }
 
+
+

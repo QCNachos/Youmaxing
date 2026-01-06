@@ -37,6 +37,7 @@ import {
 } from '@/lib/miniAppData';
 import { FolderBrowser, businessFolders } from '@/components/FolderBrowser';
 import { Films } from '@/components/aspects/Films';
+import { Food } from '@/components/aspects/Food';
 import type { AspectType } from '@/types/database';
 
 // Filter valid aspect IDs
@@ -208,67 +209,7 @@ function MiniAppContent({ aspectId, theme, color }: { aspectId: AspectType; them
       );
 
     case 'food':
-      const todaysMeal = getTodaysMeal();
-      const uncheckedGroceries = groceryList.filter(i => !i.checked);
-      
-      return (
-        <div className="space-y-4">
-          {/* Today's Meal */}
-          <Card className={cn("border", cardBg)}>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className={cn("font-semibold", textPrimary)}>Tonight's Dinner</h3>
-                <Calendar className={cn("h-4 w-4", textSecondary)} />
-              </div>
-              {todaysMeal ? (
-                <div className="flex items-center gap-3 p-3 rounded-xl" style={{ backgroundColor: `${color}10` }}>
-                  <span className="text-3xl">{todaysMeal.emoji}</span>
-                  <div>
-                    <p className={cn("font-medium", textPrimary)}>{todaysMeal.name}</p>
-                    <p className={cn("text-xs", textSecondary)}>{todaysMeal.tags.join(' • ')}</p>
-                  </div>
-                </div>
-              ) : (
-                <p className={cn("text-sm", textSecondary)}>Nothing planned yet</p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Weekly Plan */}
-          <Card className={cn("border", cardBg)}>
-            <CardContent className="p-4">
-              <h3 className={cn("font-semibold mb-3", textPrimary)}>This Week</h3>
-              <div className="space-y-2">
-                {Object.entries(weeklyMealPlan).map(([day, meal]) => (
-                  <div key={day} className="flex items-center justify-between py-1">
-                    <span className={cn("text-sm", textSecondary)}>{day}</span>
-                    {meal ? (
-                      <span className={cn("text-sm", textPrimary)}>{meal.emoji} {meal.name}</span>
-                    ) : (
-                      <span className={cn("text-xs", textSecondary)}>—</span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Grocery List */}
-          <Card className={cn("border", cardBg)}>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className={cn("font-semibold", textPrimary)}>Grocery List</h3>
-                <Badge style={{ backgroundColor: `${color}20`, color }}>{uncheckedGroceries.length} items</Badge>
-              </div>
-              <div className="space-y-1">
-                {uncheckedGroceries.slice(0, 5).map((item, i) => (
-                  <div key={i} className={cn("text-sm", textSecondary)}>• {item.item}</div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      );
+      return <Food />;
 
     case 'finance':
       return (

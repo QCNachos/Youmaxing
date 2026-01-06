@@ -272,3 +272,4 @@ export function PointsDisplay({ variant = 'badge', showHistory = true }: PointsD
   );
 }
 
+
