@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { useAppStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import {
   Folder,
@@ -149,6 +150,7 @@ export function FolderBrowser({
   compact = false,
   title = 'Files & Folders',
 }: FolderBrowserProps) {
+  const { theme } = useAppStore();
   const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
   const [selectedItem, setSelectedItem] = useState<FolderItem | null>(null);
   const [currentPath, setCurrentPath] = useState<FolderItem[]>([]);
@@ -227,9 +229,15 @@ export function FolderBrowser({
           {item.type === 'folder' ? (
             hasChildren ? (
               isExpanded ? (
-                <ChevronDown className="h-4 w-4 text-white/40 flex-shrink-0" />
+                <ChevronDown className={cn(
+                  "h-4 w-4 flex-shrink-0",
+                  theme === 'light' ? "text-slate-400" : "text-white/40"
+                )} />
               ) : (
-                <ChevronRight className="h-4 w-4 text-white/40 flex-shrink-0" />
+                <ChevronRight className={cn(
+                  "h-4 w-4 flex-shrink-0",
+                  theme === 'light' ? "text-slate-400" : "text-white/40"
+                )} />
               )
             ) : (
               <div className="w-4 h-4 flex-shrink-0" />
@@ -254,13 +262,18 @@ export function FolderBrowser({
           ) : item.type === 'link' ? (
             <Link2 className="h-4 w-4 text-blue-400 flex-shrink-0" />
           ) : (
-            <FileText className="h-4 w-4 text-white/60 flex-shrink-0" />
+            <FileText className={cn(
+              "h-4 w-4 flex-shrink-0",
+              theme === 'light' ? "text-slate-500" : "text-white/60"
+            )} />
           )}
 
           {/* Name */}
           <span className={cn(
             'flex-1 truncate',
-            isSelected ? 'text-white font-medium' : 'text-white/80'
+            isSelected 
+              ? theme === 'light' ? 'text-slate-900 font-medium' : 'text-white font-medium'
+              : theme === 'light' ? 'text-slate-700' : 'text-white/80'
           )}>
             {item.name}
           </span>
@@ -292,20 +305,35 @@ export function FolderBrowser({
       <div className="flex items-center justify-between px-2">
         <div className="flex items-center gap-2">
           <Folder className="h-4 w-4" style={{ color: aspectColor }} />
-          <h3 className="font-semibold text-white text-sm">{title}</h3>
+          <h3 className={cn(
+            "font-semibold text-sm",
+            theme === 'light' ? "text-slate-900" : "text-white"
+          )}>
+            {title}
+          </h3>
         </div>
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 text-white/40 hover:text-white hover:bg-white/10"
+            className={cn(
+              "h-7 w-7",
+              theme === 'light' 
+                ? "text-slate-400 hover:text-slate-900 hover:bg-slate-100"
+                : "text-white/40 hover:text-white hover:bg-white/10"
+            )}
           >
             <Plus className="h-4 w-4" />
           </Button>
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7 text-white/40 hover:text-white hover:bg-white/10"
+            className={cn(
+              "h-7 w-7",
+              theme === 'light' 
+                ? "text-slate-400 hover:text-slate-900 hover:bg-slate-100"
+                : "text-white/40 hover:text-white hover:bg-white/10"
+            )}
           >
             <Upload className="h-4 w-4" />
           </Button>

@@ -75,7 +75,7 @@ export function CalendarSidebarEnhanced() {
   const [taskForm, setTaskForm] = useState({
     title: '',
     description: '',
-    aspect_id: 'events' as AspectType,
+    aspect_id: 'training' as AspectType,
     type: 'personal' as 'personal' | 'job',
     priority: 'medium' as 'low' | 'medium' | 'high',
     estimated_duration_minutes: 30,
@@ -84,11 +84,14 @@ export function CalendarSidebarEnhanced() {
   const [objectiveForm, setObjectiveForm] = useState({
     title: '',
     description: '',
-    aspect_id: 'events' as AspectType,
+    aspect_id: 'training' as AspectType,
     type: 'personal' as 'personal' | 'job',
     priority: 'medium' as 'low' | 'medium' | 'high',
     progress_percentage: 0,
   });
+
+  // Filter out settings from aspect list for tasks/objectives
+  const validAspects = aspects.filter(a => a.id !== 'settings');
 
   // Generate unified events from all mini-apps + manual events
   const events = useMemo(() => {
@@ -147,7 +150,7 @@ export function CalendarSidebarEnhanced() {
     setTaskForm({
       title: '',
       description: '',
-      aspect_id: 'events',
+      aspect_id: 'training',
       type: 'personal',
       priority: 'medium',
       estimated_duration_minutes: 30,
@@ -173,7 +176,7 @@ export function CalendarSidebarEnhanced() {
     setObjectiveForm({
       title: '',
       description: '',
-      aspect_id: 'events',
+      aspect_id: 'training',
       type: 'personal',
       priority: 'medium',
       progress_percentage: 0,
@@ -199,7 +202,7 @@ export function CalendarSidebarEnhanced() {
     setObjectiveForm({
       title: '',
       description: '',
-      aspect_id: 'events',
+      aspect_id: 'training',
       type: 'personal',
       priority: 'medium',
       progress_percentage: 0,
@@ -773,7 +776,7 @@ export function CalendarSidebarEnhanced() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {aspects.filter(a => a.id !== 'settings').map(aspect => (
+                    {validAspects.map(aspect => (
                       <SelectItem key={aspect.id} value={aspect.id}>
                         {aspect.name}
                       </SelectItem>
@@ -878,7 +881,7 @@ export function CalendarSidebarEnhanced() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {aspects.filter(a => a.id !== 'settings').map(aspect => (
+                    {validAspects.map(aspect => (
                       <SelectItem key={aspect.id} value={aspect.id}>
                         {aspect.name}
                       </SelectItem>
