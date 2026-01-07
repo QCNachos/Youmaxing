@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,7 @@ import { NotificationsSettings } from '@/components/settings/NotificationsSettin
 import { PrivacySettings } from '@/components/settings/PrivacySettings';
 import { BillingSettings } from '@/components/settings/BillingSettings';
 
-export default function SettingsPage() {
+function SettingsContent() {
   // TODO: Get actual user ID from auth
   const userId = 'demo-user-id';
   const searchParams = useSearchParams();
@@ -110,4 +110,17 @@ export default function SettingsPage() {
   );
 }
 
-
+export default function SettingsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading settings...</p>
+        </div>
+      </div>
+    }>
+      <SettingsContent />
+    </Suspense>
+  );
+}
