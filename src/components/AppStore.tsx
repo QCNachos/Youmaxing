@@ -28,6 +28,7 @@ import {
 import { aspects } from '@/lib/aspects';
 import { useCarouselApps } from '@/hooks/useCarouselApps';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 // Extended icon mapping including main aspect icons
 const iconMap: Record<string, LucideIcon> = {
