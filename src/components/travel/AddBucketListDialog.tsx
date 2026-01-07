@@ -114,7 +114,7 @@ export function AddBucketListDialog({ open, onOpenChange, onSuccess }: AddBucket
               <Input
                 type="text"
                 placeholder="Or type"
-                value={formData.emoji}
+                value={formData.emoji || ''}
                 onChange={(e) => setFormData({ ...formData, emoji: e.target.value })}
                 className="w-20 text-center text-xl"
                 maxLength={10}
