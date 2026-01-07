@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
@@ -84,6 +84,9 @@ export function ExpandedObjectivesDialog({
             <Target className="h-5 w-5" />
             All Objectives & Tasks
           </DialogTitle>
+          <DialogDescription>
+            View and manage your daily tasks, weekly objectives, and monthly goals.
+          </DialogDescription>
         </DialogHeader>
         
         {loading ? (

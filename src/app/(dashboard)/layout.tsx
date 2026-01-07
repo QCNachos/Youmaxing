@@ -12,6 +12,7 @@ import { EarnPanel } from '@/components/EarnPanel';
 import { PremiumPanel } from '@/components/PremiumPanel';
 import { AppStore } from '@/components/AppStore';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { ExpandedObjectivesDialogEnhanced } from '@/components/ExpandedObjectivesDialogEnhanced';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -555,67 +556,12 @@ function ExpandedCalendarView() {
         </DialogContent>
       </Dialog>
 
-      {/* Expanded Objectives Dialog */}
-      <Dialog open={objectivesExpanded} onOpenChange={setObjectivesExpanded}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5" />
-              All Objectives
-            </DialogTitle>
-          </DialogHeader>
-          <Tabs defaultValue="monthly" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="monthly">Monthly</TabsTrigger>
-              <TabsTrigger value="weekly">Weekly</TabsTrigger>
-              <TabsTrigger value="daily">Daily</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="monthly" className="mt-4 space-y-3">
-              {mockObjectives.monthly.map(obj => (
-                <div key={obj.id} className="p-3 rounded-xl bg-muted/50">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium">{obj.title}</span>
-                    <span className="text-sm text-muted-foreground">{obj.progress}%</span>
-                  </div>
-                  <Progress value={obj.progress} className="h-2" />
-                </div>
-              ))}
-            </TabsContent>
-            
-            <TabsContent value="weekly" className="mt-4 space-y-3">
-              {mockObjectives.weekly.map(obj => (
-                <div key={obj.id} className="p-3 rounded-xl bg-muted/50">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium">{obj.title}</span>
-                    <span className="text-sm text-muted-foreground">{obj.progress}%</span>
-                  </div>
-                  <Progress value={obj.progress} className="h-2" />
-                </div>
-              ))}
-            </TabsContent>
-            
-            <TabsContent value="daily" className="mt-4 space-y-2">
-              {mockObjectives.daily.map(task => (
-                <div key={task.id} className="flex items-center gap-3 p-3 rounded-xl bg-muted/50 hover:bg-muted transition-colors cursor-pointer">
-                  <CheckCircle2
-                    className={cn(
-                      "h-5 w-5 flex-shrink-0",
-                      task.status === 'completed' ? 'text-green-500 fill-green-500' : 'text-muted-foreground'
-                    )}
-                  />
-                  <span className={cn(
-                    "flex-1",
-                    task.status === 'completed' && 'line-through text-muted-foreground'
-                  )}>
-                    {task.title}
-                  </span>
-                </div>
-              ))}
-            </TabsContent>
-          </Tabs>
-        </DialogContent>
-      </Dialog>
+      {/* Expanded Objectives Dialog - Enhanced */}
+      <ExpandedObjectivesDialogEnhanced
+        open={objectivesExpanded}
+        onOpenChange={setObjectivesExpanded}
+        selectedDate={selectedDate}
+      />
 
       {/* Expanded Mood Dialog */}
       <Dialog open={moodExpanded} onOpenChange={setMoodExpanded}>

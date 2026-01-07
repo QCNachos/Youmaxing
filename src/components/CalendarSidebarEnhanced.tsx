@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Calendar } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -40,7 +40,7 @@ import {
   type CalendarEvent,
 } from '@/lib/unifiedCalendar';
 
-type DialogType = 'addTask' | 'addWeekly' | 'addMonthly' | 'editTask' | 'editWeekly' | 'editMonthly' | null;
+type DialogType = 'addTask' | 'addWeekly' | 'addMonthly' | 'editTask' | 'editWeekly' | 'editMonthly' | 'addEvent' | null;
 
 export function CalendarSidebarEnhanced() {
   const router = useRouter();
@@ -92,6 +92,16 @@ export function CalendarSidebarEnhanced() {
 
   // Filter out settings from aspect list for tasks/objectives
   const validAspects = aspects.filter(a => a.id !== 'settings');
+
+  // Event form state (for manual calendar events)
+  const [eventForm, setEventForm] = useState({
+    title: '',
+    description: '',
+    aspect: 'events' as AspectType,
+    type: 'personal' as 'personal' | 'job',
+    time: '',
+    priority: 'medium' as 'low' | 'medium' | 'high'
+  });
 
   // Generate unified events from all mini-apps + manual events
   const events = useMemo(() => {
@@ -229,6 +239,36 @@ export function CalendarSidebarEnhanced() {
     setEditingId(null);
   };
 
+  // Event handlers
+  const openAddEventDialog = () => {
+    setEventForm({
+      title: '',
+      description: '',
+      aspect: 'events',
+      type: 'personal',
+      time: '',
+      priority: 'medium'
+    });
+    setDialogType('addEvent');
+  };
+
+  const handleEventSubmit = () => {
+    const event: CalendarEvent = {
+      id: `manual-${Date.now()}`,
+      title: eventForm.title,
+      description: eventForm.description,
+      aspect: eventForm.aspect,
+      type: eventForm.type,
+      date: date || new Date(),
+      time: eventForm.time,
+      priority: eventForm.priority,
+      status: 'scheduled',
+      source: 'manual',
+    };
+    setManualEvents([...manualEvents, event]);
+    closeDialog();
+  };
+
   // CRUD handlers
   const handleTaskSubmit = async () => {
     try {
@@ -238,8 +278,10 @@ export function CalendarSidebarEnhanced() {
         await addTask(taskForm);
       }
       closeDialog();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error saving task:', err);
+      const errorMsg = err?.message || 'Failed to save task. Make sure you ran the database migration!';
+      alert(`Error: ${errorMsg}\n\nIf you see "foreign key constraint", you need to run the migration file: 00013_fix_life_aspects.sql`);
     }
   };
 
@@ -251,8 +293,10 @@ export function CalendarSidebarEnhanced() {
         await addWeeklyObjective(objectiveForm);
       }
       closeDialog();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error saving weekly objective:', err);
+      const errorMsg = err?.message || 'Failed to save weekly objective';
+      alert(`Error: ${errorMsg}\n\nIf you see "foreign key constraint" or "409", you need to run the migration file: 00013_fix_life_aspects.sql`);
     }
   };
 
@@ -264,8 +308,10 @@ export function CalendarSidebarEnhanced() {
         await addMonthlyObjective(objectiveForm);
       }
       closeDialog();
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error saving monthly objective:', err);
+      const errorMsg = err?.message || 'Failed to save monthly objective';
+      alert(`Error: ${errorMsg}\n\nIf you see "foreign key constraint" or "409", you need to run the migration file: 00013_fix_life_aspects.sql`);
     }
   };
 
@@ -412,6 +458,10 @@ export function CalendarSidebarEnhanced() {
               <div className="text-center py-8">
                 <CalendarIcon className="h-8 w-8 text-muted-foreground mx-auto mb-2 opacity-50" />
                 <p className="text-sm text-muted-foreground">No events scheduled</p>
+                <Button size="sm" variant="outline" className="mt-3" onClick={openAddEventDialog}>
+                  <Plus className="h-3 w-3 mr-1" />
+                  Add Event
+                </Button>
               </div>
             ) : (
               <div className="space-y-2">
@@ -440,21 +490,37 @@ export function CalendarSidebarEnhanced() {
                               {event.time}
                             </span>
                           )}
-                          <Badge
-                            variant="secondary"
-                            className="text-xs rounded-md"
-                            style={{ 
-                              backgroundColor: `${getAspectColor(event.aspect)}20`,
-                              color: getAspectColor(event.aspect)
-                            }}
-                          >
-                            {aspects.find((a) => a.id === event.aspect)?.name}
-                          </Badge>
+                          {event.type === 'job' ? (
+                            <Badge variant="outline" className="text-xs bg-gradient-to-r from-blue-500 to-cyan-500 text-white border-0">
+                              <Briefcase className="h-3 w-3 mr-1" />
+                              Job
+                            </Badge>
+                          ) : (
+                            <Badge
+                              variant="secondary"
+                              className="text-xs rounded-md"
+                              style={{ 
+                                backgroundColor: `${getAspectColor(event.aspect)}20`,
+                                color: getAspectColor(event.aspect)
+                              }}
+                            >
+                              {aspects.find((a) => a.id === event.aspect)?.name}
+                            </Badge>
+                          )}
                         </div>
                       </div>
                     </div>
                   </div>
                 ))}
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  className="w-full mt-2 text-muted-foreground hover:text-foreground" 
+                  onClick={openAddEventDialog}
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Add Event
+                </Button>
               </div>
             )}
           </TabsContent>
@@ -505,11 +571,30 @@ export function CalendarSidebarEnhanced() {
                           }`}>
                             {task.title}
                           </span>
-                          {task.estimated_duration_minutes && (
-                            <span className="text-xs text-muted-foreground">
-                              {task.estimated_duration_minutes}min
-                            </span>
-                          )}
+                          <div className="flex items-center gap-1.5 mt-1">
+                            {task.type === 'job' ? (
+                              <Badge variant="outline" className="text-[10px] h-4 bg-gradient-to-r from-blue-500 to-cyan-500 text-white border-0">
+                                <Briefcase className="h-2.5 w-2.5 mr-0.5" />
+                                Job
+                              </Badge>
+                            ) : task.aspect_id && (
+                              <Badge
+                                variant="secondary"
+                                className="text-[10px] h-4"
+                                style={{ 
+                                  backgroundColor: `${getAspectColor(task.aspect_id as AspectType)}20`,
+                                  color: getAspectColor(task.aspect_id as AspectType)
+                                }}
+                              >
+                                {aspects.find((a) => a.id === task.aspect_id)?.name}
+                              </Badge>
+                            )}
+                            {task.estimated_duration_minutes && (
+                              <span className="text-xs text-muted-foreground">
+                                {task.estimated_duration_minutes}min
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <Badge
                           variant="outline"
@@ -746,6 +831,9 @@ export function CalendarSidebarEnhanced() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>{dialogType === 'editTask' ? 'Edit Task' : 'Add Task'}</DialogTitle>
+            <DialogDescription>
+              {dialogType === 'editTask' ? 'Update the details of your task.' : 'Create a new task for the selected date.'}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -765,9 +853,24 @@ export function CalendarSidebarEnhanced() {
                 rows={2}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Type</Label>
+              <Select 
+                value={taskForm.type} 
+                onValueChange={(value: 'personal' | 'job') => setTaskForm({ ...taskForm, type: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="personal">Personal</SelectItem>
+                  <SelectItem value="job">Job/Work</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {taskForm.type === 'personal' && (
               <div className="space-y-2">
-                <Label>Aspect</Label>
+                <Label>Category</Label>
                 <Select 
                   value={taskForm.aspect_id} 
                   onValueChange={(value: AspectType) => setTaskForm({ ...taskForm, aspect_id: value })}
@@ -784,22 +887,7 @@ export function CalendarSidebarEnhanced() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label>Type</Label>
-                <Select 
-                  value={taskForm.type} 
-                  onValueChange={(value: 'personal' | 'job') => setTaskForm({ ...taskForm, type: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="personal">Personal</SelectItem>
-                    <SelectItem value="job">Job</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Priority</Label>
@@ -851,6 +939,11 @@ export function CalendarSidebarEnhanced() {
                dialogType === 'editMonthly' ? 'Edit Monthly Objective' :
                dialogType === 'addWeekly' ? 'Add Weekly Objective' : 'Add Monthly Objective'}
             </DialogTitle>
+            <DialogDescription>
+              {dialogType?.includes('Weekly') 
+                ? 'Set a goal for this week with progress tracking.' 
+                : 'Set a goal for this month with progress tracking.'}
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
@@ -870,9 +963,24 @@ export function CalendarSidebarEnhanced() {
                 rows={2}
               />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Type</Label>
+              <Select 
+                value={objectiveForm.type} 
+                onValueChange={(value: 'personal' | 'job') => setObjectiveForm({ ...objectiveForm, type: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="personal">Personal</SelectItem>
+                  <SelectItem value="job">Job/Work</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {objectiveForm.type === 'personal' && (
               <div className="space-y-2">
-                <Label>Aspect</Label>
+                <Label>Category</Label>
                 <Select 
                   value={objectiveForm.aspect_id} 
                   onValueChange={(value: AspectType) => setObjectiveForm({ ...objectiveForm, aspect_id: value })}
@@ -889,22 +997,7 @@ export function CalendarSidebarEnhanced() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label>Type</Label>
-                <Select 
-                  value={objectiveForm.type} 
-                  onValueChange={(value: 'personal' | 'job') => setObjectiveForm({ ...objectiveForm, type: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="personal">Personal</SelectItem>
-                    <SelectItem value="job">Job</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Priority</Label>
@@ -944,6 +1037,110 @@ export function CalendarSidebarEnhanced() {
               className="bg-gradient-to-r from-violet-600 to-pink-600"
             >
               {dialogType?.includes('edit') ? 'Save' : 'Add'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Event Dialog */}
+      <Dialog open={dialogType === 'addEvent'} onOpenChange={closeDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Event</DialogTitle>
+            <DialogDescription>
+              Create a calendar event for the selected date.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Title</Label>
+              <Input
+                placeholder="Event title"
+                value={eventForm.title}
+                onChange={(e) => setEventForm({ ...eventForm, title: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Description (Optional)</Label>
+              <Textarea
+                placeholder="Event description"
+                value={eventForm.description}
+                onChange={(e) => setEventForm({ ...eventForm, description: e.target.value })}
+                rows={2}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Aspect</Label>
+                <Select 
+                  value={eventForm.aspect} 
+                  onValueChange={(value: AspectType) => setEventForm({ ...eventForm, aspect: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {aspects.map(aspect => (
+                      <SelectItem key={aspect.id} value={aspect.id}>
+                        {aspect.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Type</Label>
+                <Select 
+                  value={eventForm.type} 
+                  onValueChange={(value: 'personal' | 'job') => setEventForm({ ...eventForm, type: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="personal">Personal</SelectItem>
+                    <SelectItem value="job">Job</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Time (Optional)</Label>
+                <Input
+                  type="time"
+                  value={eventForm.time}
+                  onChange={(e) => setEventForm({ ...eventForm, time: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Priority</Label>
+                <Select 
+                  value={eventForm.priority} 
+                  onValueChange={(value: 'low' | 'medium' | 'high') => setEventForm({ ...eventForm, priority: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeDialog}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleEventSubmit}
+              disabled={!eventForm.title.trim()}
+              className="bg-gradient-to-r from-violet-600 to-pink-600"
+            >
+              Add Event
             </Button>
           </DialogFooter>
         </DialogContent>
