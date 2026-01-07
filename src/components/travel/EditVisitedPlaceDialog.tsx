@@ -53,7 +53,7 @@ export function EditVisitedPlaceDialog({ open, onOpenChange, onSuccess, place }:
         country: place.country,
         city: place.city || '',
         year: place.year,
-        emoji: place.emoji,
+        emoji: place.emoji || '📍',
         notes: place.notes || '',
         rating: place.rating || 5,
       });
