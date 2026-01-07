@@ -91,6 +91,9 @@ export function SettingsMenu({ isOpen, onClose }: SettingsMenuProps) {
   };
 
   const handleMenuItemClick = (itemId: string) => {
+    console.log('Menu item clicked:', itemId);
+    alert(`Clicked: ${itemId}`); // Debug alert
+    
     // Map menu item IDs to settings page tab IDs
     const tabMapping: Record<string, string> = {
       'profile': 'profile',
@@ -103,8 +106,16 @@ export function SettingsMenu({ isOpen, onClose }: SettingsMenuProps) {
     };
 
     const tab = tabMapping[itemId] || 'profile';
-    router.push(`/settings?tab=${tab}`);
-    onClose();
+    console.log('Navigating to /settings with tab:', tab);
+    
+    try {
+      router.push(`/settings?tab=${tab}`);
+      console.log('Router push called successfully');
+      onClose();
+    } catch (error) {
+      console.error('Router error:', error);
+      alert('Navigation error: ' + error);
+    }
   };
 
   if (!isOpen) return null;
@@ -117,7 +128,10 @@ export function SettingsMenu({ isOpen, onClose }: SettingsMenuProps) {
           "fixed inset-0 backdrop-blur-sm z-40 animate-fade-in",
           theme === 'light' ? "bg-black/20" : "bg-black/60"
         )}
-        onClick={onClose}
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
       />
 
       {/* Menu Panel */}
@@ -163,9 +177,14 @@ export function SettingsMenu({ isOpen, onClose }: SettingsMenuProps) {
             return (
               <button
                 key={item.id}
-                onClick={() => handleMenuItemClick(item.id)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log('Button clicked!', item.id);
+                  handleMenuItemClick(item.id);
+                }}
                 className={cn(
-                  'w-full p-4 rounded-2xl flex items-center gap-4 transition-all group',
+                  'w-full p-4 rounded-2xl flex items-center gap-4 transition-all group cursor-pointer relative z-10',
                   theme === 'light'
                     ? cn(
                         'hover:bg-violet-50',
@@ -176,6 +195,7 @@ export function SettingsMenu({ isOpen, onClose }: SettingsMenuProps) {
                         activeSection === item.id && 'bg-white/5'
                       )
                 )}
+                type="button"
               >
                 <div
                   className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-105"
