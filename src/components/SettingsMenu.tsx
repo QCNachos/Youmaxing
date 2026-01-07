@@ -92,7 +92,6 @@ export function SettingsMenu({ isOpen, onClose }: SettingsMenuProps) {
 
   const handleMenuItemClick = (itemId: string) => {
     console.log('Menu item clicked:', itemId);
-    alert(`Clicked: ${itemId}`); // Debug alert
     
     // Map menu item IDs to settings page tab IDs
     const tabMapping: Record<string, string> = {
@@ -108,14 +107,11 @@ export function SettingsMenu({ isOpen, onClose }: SettingsMenuProps) {
     const tab = tabMapping[itemId] || 'profile';
     console.log('Navigating to /settings with tab:', tab);
     
-    try {
-      router.push(`/settings?tab=${tab}`);
-      console.log('Router push called successfully');
-      onClose();
-    } catch (error) {
-      console.error('Router error:', error);
-      alert('Navigation error: ' + error);
-    }
+    // Close the menu
+    onClose();
+    
+    // Use window.location for hard navigation
+    window.location.href = `/settings?tab=${tab}`;
   };
 
   if (!isOpen) return null;
