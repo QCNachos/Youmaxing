@@ -7,8 +7,9 @@ import { useGLTF, useAnimations, OrbitControls, Environment, ContactShadows } fr
 import * as THREE from 'three';
 import { useAppStore } from '@/lib/store';
 import { aspects } from '@/lib/aspects';
-import { ChevronLeft, ChevronRight, User, Sparkles, ExternalLink } from 'lucide-react';
+import { ChevronLeft, ChevronRight, User, Sparkles, ExternalLink, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { createClient } from '@/lib/supabase/client';
 
 // Filter out settings - it's a menu now, not an aspect
 const aspectsWithoutSettings = aspects.filter(a => a.id !== 'settings');
