@@ -11,11 +11,11 @@ import { useAppStore } from '@/lib/store';
 interface VisitedPlace {
   id: string;
   country: string;
-  city?: string;
+  city?: string | null;
   year: number;
-  emoji: string;
+  emoji: string | null;
   coordinates: { x: number; y: number }; // Percentage coordinates on the map
-  notes?: string;
+  notes?: string | null;
 }
 
 interface WorldMapProps {
@@ -151,7 +151,7 @@ export function WorldMap({ visitedPlaces, color = '#06B6D4', onAddPlace }: World
                     )}
                   >
                     <p className={cn("text-sm font-medium", textPrimary)}>
-                      {place.emoji} {place.city || place.country}
+                      {place.emoji || '🌍'} {place.city || place.country}
                     </p>
                     <p className={cn("text-xs", textSecondary)}>{place.year}</p>
                   </div>
@@ -211,7 +211,7 @@ export function WorldMap({ visitedPlaces, color = '#06B6D4', onAddPlace }: World
                 : 'bg-white/5 hover:bg-white/10'
             )}
           >
-            <span className="text-xl">{place.emoji}</span>
+            <span className="text-xl">{place.emoji || '🌍'}</span>
             <div className="flex-1 min-w-0">
               <p className={cn("text-sm font-medium truncate", textPrimary)}>
                 {place.city || place.country}
