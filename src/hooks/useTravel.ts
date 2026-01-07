@@ -8,13 +8,13 @@ export interface Trip {
   id: string;
   user_id: string;
   destination: string;
-  status: 'dream' | 'planning' | 'booked' | 'completed';
+  status: string | null;
   start_date: string | null;
   end_date: string | null;
   budget: number | null;
-  current_saved?: number | null;
+  current_saved: number | null;
   notes: string | null;
-  created_at: string;
+  created_at: string | null;
 }
 
 export interface BucketListItem {
@@ -22,12 +22,12 @@ export interface BucketListItem {
   user_id: string;
   destination: string;
   country: string | null;
-  emoji: string;
+  emoji: string | null;
   reason: string | null;
-  priority: 'low' | 'medium' | 'high';
+  priority: string | null;
   notes: string | null;
-  created_at: string;
-  updated_at: string;
+  created_at: string | null;
+  updated_at: string | null;
 }
 
 export interface VisitedPlace {
@@ -36,15 +36,15 @@ export interface VisitedPlace {
   country: string;
   city: string | null;
   year: number;
-  emoji: string;
+  emoji: string | null;
   coordinates_x: number;
   coordinates_y: number;
   notes: string | null;
   photos: string[] | null;
   rating: number | null;
   visited_at: string | null;
-  created_at: string;
-  updated_at: string;
+  created_at: string | null;
+  updated_at: string | null;
 }
 
 // Hook for managing trips
