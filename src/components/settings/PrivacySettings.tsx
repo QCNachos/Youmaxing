@@ -40,18 +40,18 @@ export function PrivacySettings() {
       }
 
       // Fetch all user data
-      const [profile, preferences, activities, insights] = await Promise.all([
+      const [profile, preferences, tasks, objectives] = await Promise.all([
         supabase.from('user_profiles').select('*').eq('user_id', user.id).single(),
         supabase.from('user_preferences').select('*').eq('user_id', user.id).single(),
-        supabase.from('activities').select('*').eq('user_id', user.id),
-        supabase.from('user_insights').select('*').eq('user_id', user.id),
+        supabase.from('daily_tasks').select('*').eq('user_id', user.id),
+        supabase.from('weekly_objectives').select('*').eq('user_id', user.id),
       ]);
 
       const userData = {
         profile: profile.data,
         preferences: preferences.data,
-        activities: activities.data,
-        insights: insights.data,
+        tasks: tasks.data,
+        objectives: objectives.data,
         exportDate: new Date().toISOString(),
       };
 

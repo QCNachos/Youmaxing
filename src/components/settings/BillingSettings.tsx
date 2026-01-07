@@ -84,7 +84,7 @@ export function BillingSettings() {
         .single();
 
       if (subscription) {
-        setCurrentPlan(subscription.plan_id || 'free');
+        setCurrentPlan(subscription.tier || 'free');
       }
 
       // Get billing history (mock for now)

@@ -51,14 +51,16 @@ export function NotificationsSettings({ userId }: NotificationsSettingsProps) {
 
       if (data) {
         // Map database fields to local state
+        // Note: Full notification preferences coming soon
+        const enabled = data.notifications_enabled ?? true;
         setPreferences({
-          emailNotifications: data.email_notifications ?? true,
-          pushNotifications: data.push_notifications ?? false,
-          dailyDigest: data.daily_digest ?? true,
-          weeklyReport: data.weekly_report ?? true,
-          aspectReminders: data.aspect_reminders ?? true,
-          socialUpdates: data.social_updates ?? true,
-          achievementAlerts: data.achievement_alerts ?? true,
+          emailNotifications: enabled,
+          pushNotifications: false,
+          dailyDigest: enabled,
+          weeklyReport: enabled,
+          aspectReminders: enabled,
+          socialUpdates: enabled,
+          achievementAlerts: enabled,
         });
       }
     } catch (error) {
@@ -82,14 +84,8 @@ export function NotificationsSettings({ userId }: NotificationsSettingsProps) {
       const { error } = await supabase
         .from('user_preferences')
         .update({
-          email_notifications: preferences.emailNotifications,
-          push_notifications: preferences.pushNotifications,
-          daily_digest: preferences.dailyDigest,
-          weekly_report: preferences.weeklyReport,
-          aspect_reminders: preferences.aspectReminders,
-          social_updates: preferences.socialUpdates,
-          achievement_alerts: preferences.achievementAlerts,
-          updated_at: new Date().toISOString(),
+          notifications_enabled: preferences.emailNotifications || preferences.dailyDigest,
+          // Note: Additional notification preferences coming soon
         })
         .eq('user_id', user.id);
 
