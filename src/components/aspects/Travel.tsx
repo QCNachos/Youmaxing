@@ -196,7 +196,15 @@ export function Travel() {
 
         <TabsContent value="map" className="mt-6">
           <WorldMap 
-            visitedPlaces={visitedPlaces} 
+            visitedPlaces={visitedPlaces.map(place => ({
+              id: place.id,
+              country: place.country,
+              city: place.city || undefined,
+              year: place.year,
+              emoji: place.emoji,
+              coordinates: { x: place.coordinates_x, y: place.coordinates_y },
+              notes: place.notes || undefined
+            }))} 
             color="#06B6D4" 
             onAddPlace={() => setIsAddingPlace(true)}
           />
