@@ -366,7 +366,7 @@ function MiniAppContent({ aspectId, theme, color }: { aspectId: AspectType; them
         country: place.country,
         city: place.city || undefined,
         year: place.year,
-        emoji: place.emoji,
+        emoji: place.emoji || '📍',
         coordinates: { x: place.coordinates_x, y: place.coordinates_y },
         notes: place.notes || undefined,
       }));
