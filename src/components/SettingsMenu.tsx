@@ -90,6 +90,23 @@ export function SettingsMenu({ isOpen, onClose }: SettingsMenuProps) {
     router.refresh();
   };
 
+  const handleMenuItemClick = (itemId: string) => {
+    // Map menu item IDs to settings page tab IDs
+    const tabMapping: Record<string, string> = {
+      'profile': 'profile',
+      'notifications': 'notifications',
+      'appearance': 'appearance',
+      'ai-preferences': 'insights',
+      'privacy': 'privacy',
+      'billing': 'billing',
+      'support': 'profile', // Default to profile for support
+    };
+
+    const tab = tabMapping[itemId] || 'profile';
+    router.push(`/settings?tab=${tab}`);
+    onClose();
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -146,7 +163,7 @@ export function SettingsMenu({ isOpen, onClose }: SettingsMenuProps) {
             return (
               <button
                 key={item.id}
-                onClick={() => setActiveSection(item.id)}
+                onClick={() => handleMenuItemClick(item.id)}
                 className={cn(
                   'w-full p-4 rounded-2xl flex items-center gap-4 transition-all group',
                   theme === 'light'

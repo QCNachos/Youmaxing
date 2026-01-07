@@ -6,12 +6,16 @@ import { aspects } from '@/lib/aspects';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+import { useCalendarChat } from '@/hooks/useCalendarChat';
 import {
   Send,
   Sparkles,
   Lightbulb,
   Filter,
   X,
+  Calendar,
+  CheckCircle2,
+  Target,
 } from 'lucide-react';
 
 interface Message {
@@ -66,6 +70,7 @@ export function GlobalChat() {
   const [filterAspect, setFilterAspect] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { processMessage, processing } = useCalendarChat();
 
   const currentAspectConfig = aspects.find((a) => a.id === currentAspect);
 
@@ -96,21 +101,51 @@ export function GlobalChat() {
     };
 
     setMessages((prev) => [...prev, userMessage]);
+    const messageText = input;
     setInput('');
     setIsTyping(true);
 
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponse: Message = {
-        id: (Date.now() + 1).toString(),
-        type: 'ai',
-        content: getAIResponse(input, currentAspect),
-        aspectId: currentAspect,
-        timestamp: new Date(),
-      };
-      setMessages((prev) => [...prev, aiResponse]);
+    // Check if this is a calendar-related message
+    const isCalendarMessage = detectCalendarIntent(messageText);
+
+    if (isCalendarMessage) {
+      // Process calendar operations
+      try {
+        const { response, toolResults } = await processMessage(messageText);
+        
+        const aiResponse: Message = {
+          id: (Date.now() + 1).toString(),
+          type: 'ai',
+          content: response,
+          aspectId: 'general',
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, aiResponse]);
+      } catch (error) {
+        const errorMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          type: 'ai',
+          content: '❌ Sorry, I encountered an error processing your calendar request. Please try again.',
+          aspectId: 'general',
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+      }
       setIsTyping(false);
-    }, 800 + Math.random() * 800);
+    } else {
+      // Regular AI response
+      setTimeout(() => {
+        const aiResponse: Message = {
+          id: (Date.now() + 1).toString(),
+          type: 'ai',
+          content: getAIResponse(messageText, currentAspect),
+          aspectId: currentAspect,
+          timestamp: new Date(),
+        };
+        setMessages((prev) => [...prev, aiResponse]);
+        setIsTyping(false);
+      }, 800 + Math.random() * 800);
+    }
   };
 
   return (
@@ -402,6 +437,28 @@ export function GlobalChat() {
       </div>
     </div>
   );
+}
+
+// Detect if message is related to calendar operations
+function detectCalendarIntent(message: string): boolean {
+  const lower = message.toLowerCase();
+  const calendarKeywords = [
+    'task', 'tasks', 'todo',
+    'event', 'events', 'schedule',
+    'objective', 'objectives', 'goal', 'goals',
+    'weekly', 'monthly', 'daily',
+    'add', 'create', 'new',
+    'show', 'list', 'my',
+    'complete', 'done', 'finish',
+    'delete', 'remove',
+    'update', 'change', 'edit',
+    'calendar',
+  ];
+  
+  return calendarKeywords.some(keyword => lower.includes(keyword)) &&
+    (lower.includes('my') || lower.includes('add') || lower.includes('show') || 
+     lower.includes('list') || lower.includes('create') || lower.includes('schedule') ||
+     lower.includes('complete') || lower.includes('delete') || lower.includes('update'));
 }
 
 // AI Response generator

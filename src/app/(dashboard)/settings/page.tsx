@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { 
@@ -14,10 +15,26 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { InsightAgentSettings } from '@/components/settings/InsightAgentSettings';
+import { ProfileSettings } from '@/components/settings/ProfileSettings';
+import { AppearanceSettings } from '@/components/settings/AppearanceSettings';
+import { NotificationsSettings } from '@/components/settings/NotificationsSettings';
+import { PrivacySettings } from '@/components/settings/PrivacySettings';
+import { BillingSettings } from '@/components/settings/BillingSettings';
 
 export default function SettingsPage() {
   // TODO: Get actual user ID from auth
   const userId = 'demo-user-id';
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get('tab');
+  
+  const [activeTab, setActiveTab] = useState(tabParam || 'insights');
+
+  // Update active tab when URL param changes
+  useEffect(() => {
+    if (tabParam) {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
   
   const tabs = [
     { id: 'profile', label: 'Profile', icon: User },
@@ -43,7 +60,7 @@ export default function SettingsPage() {
       </header>
       
       <main className="max-w-4xl mx-auto px-4 py-6">
-        <Tabs defaultValue="insights" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           {/* Tab Navigation */}
           <TabsList className="w-full justify-start h-auto p-1 bg-muted/50 rounded-xl mb-6 flex-wrap">
             {tabs.map((tab) => (
@@ -60,10 +77,7 @@ export default function SettingsPage() {
           
           {/* Profile Tab */}
           <TabsContent value="profile">
-            <div className="space-y-6">
-              <h2 className="text-2xl font-bold">Profile Settings</h2>
-              <p className="text-muted-foreground">Coming soon...</p>
-            </div>
+            <ProfileSettings userId={userId} />
           </TabsContent>
           
           {/* Insight Agent Tab */}
@@ -73,34 +87,22 @@ export default function SettingsPage() {
           
           {/* Notifications Tab */}
           <TabsContent value="notifications">
-            <div className="space-y-6">
-              <h2 className="text-2xl font-bold">Notification Preferences</h2>
-              <p className="text-muted-foreground">Coming soon...</p>
-            </div>
+            <NotificationsSettings userId={userId} />
           </TabsContent>
           
           {/* Privacy Tab */}
           <TabsContent value="privacy">
-            <div className="space-y-6">
-              <h2 className="text-2xl font-bold">Privacy & Security</h2>
-              <p className="text-muted-foreground">Coming soon...</p>
-            </div>
+            <PrivacySettings />
           </TabsContent>
           
           {/* Appearance Tab */}
           <TabsContent value="appearance">
-            <div className="space-y-6">
-              <h2 className="text-2xl font-bold">Appearance</h2>
-              <p className="text-muted-foreground">Coming soon...</p>
-            </div>
+            <AppearanceSettings />
           </TabsContent>
           
           {/* Billing Tab */}
           <TabsContent value="billing">
-            <div className="space-y-6">
-              <h2 className="text-2xl font-bold">Billing & Subscription</h2>
-              <p className="text-muted-foreground">Coming soon...</p>
-            </div>
+            <BillingSettings />
           </TabsContent>
         </Tabs>
       </main>

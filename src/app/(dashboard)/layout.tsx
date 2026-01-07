@@ -803,25 +803,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </span>
             </Button>
             
-            {/* Settings Button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn(
-                "w-full rounded-xl group relative",
-                theme === 'light' 
-                  ? "text-slate-400 hover:text-violet-600 hover:bg-violet-50"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
-              )}
-              onClick={() => router.push('/settings')}
-            >
-              <Settings className="h-5 w-5" />
-              {/* Tooltip */}
-              <span className="absolute left-full ml-2 px-2.5 py-1 bg-popover/90 backdrop-blur-xl text-popover-foreground text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-all whitespace-nowrap z-50 pointer-events-none border border-border shadow-xl">
-                Settings
-              </span>
-            </Button>
-            
             {/* Calendar Button */}
             <Button
               variant="ghost"
