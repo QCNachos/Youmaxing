@@ -27,3 +27,4 @@ CREATE INDEX IF NOT EXISTS idx_watchlist_tmdb ON watchlist(tmdb_id);
 CREATE INDEX IF NOT EXISTS idx_watchlist_tier ON watchlist(user_id, tier);
 CREATE INDEX IF NOT EXISTS idx_watchlist_franchise ON watchlist(user_id, franchise);
 
+

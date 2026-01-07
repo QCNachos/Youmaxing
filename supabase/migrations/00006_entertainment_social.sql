@@ -475,3 +475,4 @@ GRANT INSERT ON point_transactions TO service_role;
 GRANT INSERT ON social_feed TO service_role;
 
 
+

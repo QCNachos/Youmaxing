@@ -19,6 +19,11 @@ import {
   Plus,
   ChevronRight,
   Folder,
+  Heart,
+  Plane,
+  MapPin,
+  Clock,
+  CheckCircle,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { 
@@ -33,11 +38,13 @@ import {
   recentTransactions,
   friends,
   getFriendsToContact,
-  upcomingTrips,
 } from '@/lib/miniAppData';
+import { useTrips, useBucketList, useVisitedPlaces } from '@/hooks/useTravel';
 import { FolderBrowser, businessFolders } from '@/components/FolderBrowser';
 import { Films } from '@/components/aspects/Films';
 import { Food } from '@/components/aspects/Food';
+import { WorldMap } from '@/components/WorldMap';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { AspectType } from '@/types/database';
 
 // Filter valid aspect IDs
@@ -134,6 +141,10 @@ export default function MiniAppPage() {
 
 // Aspect-specific dashboard content
 function MiniAppContent({ aspectId, theme, color }: { aspectId: AspectType; theme: 'dark' | 'light'; color: string }) {
+  const { trips: userTrips } = useTrips();
+  const { items: userBucketList } = useBucketList();
+  const { places: userVisitedPlaces } = useVisitedPlaces();
+  
   const cardBg = theme === 'light' ? 'bg-white/80 border-slate-200/50' : 'bg-white/5 border-white/10';
   const textPrimary = theme === 'light' ? 'text-slate-900' : 'text-white';
   const textSecondary = theme === 'light' ? 'text-slate-500' : 'text-white/50';
@@ -325,28 +336,167 @@ function MiniAppContent({ aspectId, theme, color }: { aspectId: AspectType; them
       );
 
     case 'travel':
+      const statusConfig = {
+        dream: { label: 'Dream', icon: Heart, color: '#EC4899' },
+        planning: { label: 'Planning', icon: Clock, color: '#F59E0B' },
+        booked: { label: 'Booked', icon: Calendar, color: '#3B82F6' },
+        completed: { label: 'Completed', icon: CheckCircle, color: '#22C55E' },
+      };
+
+      // Convert visited places to WorldMap format
+      const mapPlaces = userVisitedPlaces.map(place => ({
+        id: place.id,
+        country: place.country,
+        city: place.city || undefined,
+        year: place.year,
+        emoji: place.emoji,
+        coordinates: { x: place.coordinates_x, y: place.coordinates_y },
+        notes: place.notes || undefined,
+      }));
+
       return (
-        <div className="space-y-4">
-          {/* Upcoming Trips */}
-          {upcomingTrips.map(trip => (
-            <Card key={trip.id} className={cn("border", cardBg)}>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className={cn("font-semibold", textPrimary)}>{trip.destination}</h3>
-                  <Badge style={{ backgroundColor: `${color}20`, color }}>{trip.status}</Badge>
-                </div>
-                <p className={cn("text-sm mb-3", textSecondary)}>{trip.dates}</p>
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className={textSecondary}>Fund Progress</span>
-                    <span style={{ color }}>{trip.fundProgress}%</span>
-                  </div>
-                  <Progress value={trip.fundProgress} className="h-2" />
-                </div>
+        <Tabs defaultValue="trips" className="w-full">
+          <TabsList className="grid w-full grid-cols-3 mb-4">
+            <TabsTrigger value="trips">My Trips</TabsTrigger>
+            <TabsTrigger value="bucketlist">Bucket List</TabsTrigger>
+            <TabsTrigger value="map">World Map</TabsTrigger>
+          </TabsList>
+
+          {/* My Trips Tab */}
+          <TabsContent value="trips" className="space-y-4">
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <Card className={cn("border", cardBg)}>
+                <CardContent className="p-3 text-center">
+                  <p className="text-2xl font-bold" style={{ color }}>{userTrips.length}</p>
+                  <p className={cn("text-xs", textSecondary)}>My Trips</p>
+                </CardContent>
+              </Card>
+              <Card className={cn("border", cardBg)}>
+                <CardContent className="p-3 text-center">
+                  <p className="text-2xl font-bold" style={{ color }}>{userVisitedPlaces.length}</p>
+                  <p className={cn("text-xs", textSecondary)}>Places Visited</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {userTrips.length === 0 ? (
+              <Card className={cn("border", cardBg)}>
+                <CardContent className="p-8 text-center">
+                  <Plane className={cn("h-12 w-12 mx-auto mb-3", textSecondary)} />
+                  <p className={cn("text-sm", textSecondary)}>
+                    No trips yet. Start planning your next adventure!
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              userTrips.map(trip => {
+                const config = statusConfig[trip.status as keyof typeof statusConfig] || statusConfig.dream;
+                const StatusIcon = config.icon;
+                const fundProgress = trip.budget && trip.current_saved 
+                  ? Math.round((trip.current_saved / trip.budget) * 100)
+                  : 0;
+                
+                return (
+                  <Card key={trip.id} className={cn("border", cardBg)}>
+                    <div className="h-1" style={{ backgroundColor: config.color }} />
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="w-12 h-12 rounded-xl flex items-center justify-center text-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20">
+                          ✈️
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className={cn("font-semibold", textPrimary)}>{trip.destination}</h3>
+                            <Badge 
+                              variant="secondary"
+                              style={{ backgroundColor: `${config.color}20`, color: config.color }}
+                            >
+                              <StatusIcon className="h-3 w-3 mr-1" />
+                              {config.label}
+                            </Badge>
+                          </div>
+                          {trip.start_date && (
+                            <p className={cn("text-sm mb-2", textSecondary)}>
+                              {new Date(trip.start_date).toLocaleDateString()}
+                              {trip.end_date && ` - ${new Date(trip.end_date).toLocaleDateString()}`}
+                            </p>
+                          )}
+                          {trip.budget && trip.current_saved !== null && trip.current_saved !== undefined && (
+                            <div>
+                              <div className="flex justify-between text-sm mb-1">
+                                <span className={textSecondary}>Fund Progress</span>
+                                <span style={{ color }}>{fundProgress}%</span>
+                              </div>
+                              <Progress value={fundProgress} className="h-2" />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })
+            )}
+          </TabsContent>
+
+          {/* Bucket List Tab */}
+          <TabsContent value="bucketlist" className="space-y-4">
+            <Card className={cn("border", cardBg)}>
+              <CardContent className="p-3 text-center">
+                <p className="text-2xl font-bold" style={{ color }}>{userBucketList.length}</p>
+                <p className={cn("text-xs", textSecondary)}>Dream Destinations</p>
               </CardContent>
             </Card>
-          ))}
-        </div>
+
+            <div className="grid grid-cols-1 gap-3">
+              {userBucketList.length === 0 ? (
+                <Card className={cn("border", cardBg)}>
+                  <CardContent className="p-8 text-center">
+                    <Heart className={cn("h-12 w-12 mx-auto mb-3", textSecondary)} />
+                    <p className={cn("text-sm", textSecondary)}>
+                      No bucket list items yet. Add your dream destinations!
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                userBucketList.map((item) => (
+                  <Card key={item.id} className={cn("border hover:border-primary/50 transition-colors", cardBg)}>
+                    <CardContent className="p-3">
+                      <div className="flex items-center gap-3">
+                        <span className="text-2xl">{item.emoji}</span>
+                        <div className="flex-1">
+                          <h4 className={cn("font-medium text-sm", textPrimary)}>
+                            {item.destination}
+                          </h4>
+                          {item.reason && (
+                            <p className={cn("text-xs", textSecondary)}>
+                              {item.reason}
+                            </p>
+                          )}
+                        </div>
+                        <Badge 
+                          variant="outline" 
+                          className="text-xs"
+                          style={{ 
+                            borderColor: item.priority === 'high' ? color : undefined,
+                            color: item.priority === 'high' ? color : undefined 
+                          }}
+                        >
+                          {item.priority}
+                        </Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
+          </TabsContent>
+
+          {/* World Map Tab */}
+          <TabsContent value="map" className="space-y-4">
+            <WorldMap visitedPlaces={mapPlaces} color={color} />
+          </TabsContent>
+        </Tabs>
       );
 
     case 'business':

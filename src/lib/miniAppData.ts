@@ -268,6 +268,70 @@ export const travelWishlist = [
   { destination: 'Portugal', priority: 'high' },
 ];
 
+export const bucketListDestinations = [
+  { id: 'bl1', destination: 'Iceland', emoji: '🇮🇸', reason: 'Northern Lights', priority: 'high' },
+  { id: 'bl2', destination: 'New Zealand', emoji: '🇳🇿', reason: 'Adventure sports', priority: 'medium' },
+  { id: 'bl3', destination: 'Maldives', emoji: '🇲🇻', reason: 'Beach relaxation', priority: 'high' },
+  { id: 'bl4', destination: 'Peru', emoji: '🇵🇪', reason: 'Machu Picchu', priority: 'high' },
+];
+
+export const visitedPlaces = [
+  { 
+    id: 'v1', 
+    country: 'France', 
+    city: 'Paris', 
+    year: 2024, 
+    emoji: '🇫🇷',
+    coordinates: { x: 48, y: 32 },
+    notes: 'Amazing art and culture'
+  },
+  { 
+    id: 'v2', 
+    country: 'Indonesia', 
+    city: 'Bali', 
+    year: 2023, 
+    emoji: '🇮🇩',
+    coordinates: { x: 80, y: 54 },
+    notes: 'Beautiful beaches and temples'
+  },
+  { 
+    id: 'v3', 
+    country: 'USA', 
+    city: 'New York', 
+    year: 2023, 
+    emoji: '🇺🇸',
+    coordinates: { x: 22, y: 30 },
+    notes: 'The city that never sleeps'
+  },
+  { 
+    id: 'v4', 
+    country: 'United Kingdom', 
+    city: 'London', 
+    year: 2022, 
+    emoji: '🇬🇧',
+    coordinates: { x: 47, y: 28 },
+    notes: 'History and modern culture blend'
+  },
+  { 
+    id: 'v5', 
+    country: 'Spain', 
+    city: 'Barcelona', 
+    year: 2022, 
+    emoji: '🇪🇸',
+    coordinates: { x: 48, y: 36 },
+    notes: 'Gaudi architecture is stunning'
+  },
+  { 
+    id: 'v6', 
+    country: 'Thailand', 
+    city: 'Bangkok', 
+    year: 2021, 
+    emoji: '🇹🇭',
+    coordinates: { x: 76, y: 46 },
+    notes: 'Incredible food and temples'
+  },
+];
+
 // ============================================
 // HELPER FUNCTIONS
 // ============================================
@@ -304,6 +368,7 @@ export function getUpcomingBirthdays(): Friend[] {
     return thisYearBday >= now && thisYearBday <= nextMonth;
   });
 }
+
 
 
 

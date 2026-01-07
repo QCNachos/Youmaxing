@@ -1305,6 +1305,7 @@ export type Database = {
       user_preferences: {
         Row: {
           aspect_priorities: string[] | null
+          carousel_apps: string[] | null
           created_at: string | null
           daily_message_count: number | null
           id: string
@@ -1312,9 +1313,11 @@ export type Database = {
           notifications_enabled: boolean | null
           onboarding_completed: boolean | null
           user_id: string
+          wishlist_apps: string[] | null
         }
         Insert: {
           aspect_priorities?: string[] | null
+          carousel_apps?: string[] | null
           created_at?: string | null
           daily_message_count?: number | null
           id?: string
@@ -1322,9 +1325,11 @@ export type Database = {
           notifications_enabled?: boolean | null
           onboarding_completed?: boolean | null
           user_id: string
+          wishlist_apps?: string[] | null
         }
         Update: {
           aspect_priorities?: string[] | null
+          carousel_apps?: string[] | null
           created_at?: string | null
           daily_message_count?: number | null
           id?: string
@@ -1332,6 +1337,7 @@ export type Database = {
           notifications_enabled?: boolean | null
           onboarding_completed?: boolean | null
           user_id?: string
+          wishlist_apps?: string[] | null
         }
         Relationships: []
       }

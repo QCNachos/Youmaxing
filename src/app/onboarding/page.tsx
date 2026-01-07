@@ -24,10 +24,13 @@ import {
   Target,
   Zap,
   Gift,
+  Loader2,
 } from 'lucide-react';
 import { aspects } from '@/lib/aspects';
 import type { AspectType } from '@/types/database';
 import { cn } from '@/lib/utils';
+import { createClient } from '@/lib/supabase/client';
+import { toast } from 'sonner';
 
 type OnboardingStep = 'welcome' | 'avatar' | 'priorities' | 'goals' | 'social' | 'complete';
 
@@ -68,6 +71,7 @@ export default function OnboardingPage() {
   const [points, setPoints] = useState(0);
   const [showPointsAnimation, setShowPointsAnimation] = useState(false);
   const [lastPointsEarned, setLastPointsEarned] = useState(0);
+  const [isSaving, setIsSaving] = useState(false);
 
   const steps: OnboardingStep[] = ['welcome', 'avatar', 'priorities', 'goals', 'social', 'complete'];
   const currentStepIndex = steps.indexOf(step);
@@ -135,11 +139,106 @@ export default function OnboardingPage() {
     }
   };
 
-  const completeOnboarding = () => {
-    // Add completion bonus
-    const finalPoints = points + POINTS.completion;
-    // In a real app, save points to database here
-    router.push('/dashboard');
+  const completeOnboarding = async () => {
+    setIsSaving(true);
+    
+    try {
+      const supabase = createClient();
+      
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        toast.error('Authentication error. Please log in again.');
+        router.push('/login');
+        return;
+      }
+
+      // Calculate final points
+      const finalPoints = points + POINTS.completion;
+
+      // 1. Update user profile with display name
+      const { error: profileError } = await supabase
+        .from('user_profiles')
+        .update({
+          display_name: name.trim(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', user.id);
+
+      if (profileError) {
+        console.error('Profile update error:', profileError);
+        // Don't fail the whole onboarding for this
+      }
+
+      // 2. Update user preferences with priorities and mark onboarding as complete
+      const { error: preferencesError } = await supabase
+        .from('user_preferences')
+        .update({
+          aspect_priorities: selectedPriorities.length > 0 
+            ? selectedPriorities 
+            : ['training', 'food', 'finance', 'business', 'friends'], // Default priorities
+          onboarding_completed: true,
+          installed_apps: selectedPriorities.length > 0 
+            ? selectedPriorities 
+            : ['training', 'food', 'finance', 'business', 'friends'], // Initialize with priorities
+        })
+        .eq('user_id', user.id);
+
+      if (preferencesError) {
+        console.error('Preferences update error:', preferencesError);
+        toast.error('Failed to save preferences. Please try again.');
+        setIsSaving(false);
+        return;
+      }
+
+      // 3. Initialize or update user points
+      const { data: existingPoints } = await supabase
+        .from('user_points')
+        .select('id')
+        .eq('user_id', user.id)
+        .single();
+
+      if (existingPoints) {
+        // Update existing points
+        await supabase
+          .from('user_points')
+          .update({
+            balance: finalPoints,
+            lifetime_earned: finalPoints,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('user_id', user.id);
+      } else {
+        // Create new points record
+        await supabase
+          .from('user_points')
+          .insert({
+            user_id: user.id,
+            balance: finalPoints,
+            lifetime_earned: finalPoints,
+            lifetime_spent: 0,
+          });
+      }
+
+      // 4. Log onboarding completion as a point transaction
+      await supabase
+        .from('point_transactions')
+        .insert({
+          user_id: user.id,
+          amount: finalPoints,
+          transaction_type: 'signup_bonus',
+          description: `Onboarding completed: ${selectedPriorities.length} priorities, ${selectedGoals.length} goals, ${connectedSocial.length} connections`,
+        });
+
+      // Success!
+      toast.success(`Welcome ${name}! You earned ${finalPoints} points! 🎉`);
+      router.push('/dashboard');
+    } catch (error) {
+      console.error('Onboarding save error:', error);
+      toast.error('Something went wrong. Please try again.');
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -522,9 +621,19 @@ export default function OnboardingPage() {
                 <Button
                   className="w-full h-16 bg-gradient-to-r from-violet-600 to-pink-600 hover:from-violet-500 hover:to-pink-500 text-xl font-bold"
                   onClick={completeOnboarding}
+                  disabled={isSaving}
                 >
-                  Start Maximizing
-                  <Sparkles className="ml-3 h-6 w-6" />
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="mr-3 h-6 w-6 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      Start Maximizing
+                      <Sparkles className="ml-3 h-6 w-6" />
+                    </>
+                  )}
                 </Button>
               </CardContent>
             </Card>

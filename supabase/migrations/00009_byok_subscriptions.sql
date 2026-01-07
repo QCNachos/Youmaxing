@@ -379,3 +379,4 @@ GRANT SELECT, INSERT, UPDATE ON ai_usage_tracking TO service_role;
 GRANT INSERT ON ai_message_log TO service_role;
 GRANT SELECT ON tier_limits TO service_role;
 
+

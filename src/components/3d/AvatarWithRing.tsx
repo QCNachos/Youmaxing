@@ -170,8 +170,53 @@ export function AvatarWithRing({ compact = false }: AvatarWithRingProps) {
   const router = useRouter();
   const { currentAspect, nextAspect, prevAspect, setCurrentAspect, theme } = useAppStore();
   const [use3DAvatar, setUse3DAvatar] = useState(false); // Toggle for 3D character
-  const currentAspectConfig = aspectsWithoutSettings.find((a) => a.id === currentAspect) || aspectsWithoutSettings[0];
-  const currentIndex = aspectsWithoutSettings.findIndex((a) => a.id === currentAspect);
+  const [carouselAspects, setCarouselAspects] = useState<typeof aspectsWithoutSettings>(aspectsWithoutSettings);
+  const [loading, setLoading] = useState(true);
+  
+  // Load user's carousel preferences
+  useEffect(() => {
+    const loadCarouselPreferences = async () => {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+          setLoading(false);
+          return;
+        }
+
+        const { data: preferences } = await supabase
+          .from('user_preferences')
+          .select('carousel_apps, installed_apps')
+          .eq('user_id', user.id)
+          .single();
+
+        if (preferences) {
+          // Use carousel_apps if set, otherwise fall back to installed_apps or all apps
+          const appsToShow = preferences.carousel_apps || preferences.installed_apps || aspectsWithoutSettings.map(a => a.id);
+          
+          // Filter aspects to only show those in user's carousel
+          const filteredAspects = aspectsWithoutSettings.filter(aspect => 
+            appsToShow.includes(aspect.id)
+          );
+          
+          // If user has valid carousel apps, use them. Otherwise use all.
+          if (filteredAspects.length >= 5) {
+            setCarouselAspects(filteredAspects);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading carousel preferences:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadCarouselPreferences();
+  }, []);
+
+  const currentAspectConfig = carouselAspects.find((a) => a.id === currentAspect) || carouselAspects[0];
+  const currentIndex = carouselAspects.findIndex((a) => a.id === currentAspect);
   const Icon = currentAspectConfig?.icon;
 
   // Navigate to the current aspect's mini-app page
@@ -181,12 +226,12 @@ export function AvatarWithRing({ compact = false }: AvatarWithRingProps) {
 
   // Calculate positions for 7 visible icons in an elongated ellipse
   const getVisibleAspects = () => {
-    const total = aspectsWithoutSettings.length;
-    const visible: { aspect: (typeof aspectsWithoutSettings)[number]; position: number }[] = [];
+    const total = carouselAspects.length;
+    const visible: { aspect: (typeof carouselAspects)[number]; position: number }[] = [];
     for (let i = -3; i <= 3; i++) {
       const index = (currentIndex + i + total) % total;
       visible.push({
-        aspect: aspectsWithoutSettings[index],
+        aspect: carouselAspects[index],
         position: i,
       });
     }
@@ -223,6 +268,15 @@ export function AvatarWithRing({ compact = false }: AvatarWithRingProps) {
   const containerHeight = compact ? 'h-[280px]' : 'h-[420px]';
   const avatarScale = compact ? 0.7 : 1;
   const iconScale = compact ? 0.8 : 1;
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className={cn("relative w-full flex items-center justify-center overflow-visible transition-all duration-500", containerHeight)}>
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   return (
     <div className={cn("relative w-full flex items-center justify-center overflow-visible transition-all duration-500", containerHeight)}>

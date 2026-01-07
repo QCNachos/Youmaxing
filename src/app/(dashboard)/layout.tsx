@@ -780,7 +780,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           {/* Bottom Actions */}
           <div className={cn("p-2 border-t space-y-1", theme === 'light' ? "border-violet-100" : "border-border/20")}>
-            {/* App Store Button */}
+            {/* Apps Button */}
             <Button
               variant="ghost"
               size="icon"
@@ -799,7 +799,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <Store className="h-5 w-5" />
               {/* Tooltip */}
               <span className="absolute left-full ml-2 px-2.5 py-1 bg-popover/90 backdrop-blur-xl text-popover-foreground text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-all whitespace-nowrap z-50 pointer-events-none border border-border shadow-xl">
-                App Store
+                Apps
               </span>
             </Button>
             
@@ -1071,7 +1071,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           onClose={() => setPremiumOpen(false)} 
         />
 
-        {/* App Store */}
+        {/* Apps */}
         <AppStore 
           open={appStoreOpen} 
           onOpenChange={setAppStoreOpen}

@@ -390,3 +390,4 @@ function generateEventsRecommendations(profile: UserInsightProfile): AspectRecom
 }
 
 
+

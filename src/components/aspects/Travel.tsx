@@ -4,10 +4,7 @@ import { useState } from 'react';
 import { AspectLayout, EmptyState } from './AspectLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { useAppStore } from '@/lib/store';
@@ -22,40 +19,13 @@ import {
   CheckCircle,
   Clock,
 } from 'lucide-react';
-import type { Trip } from '@/types/database';
 import { format } from 'date-fns';
+import { WorldMap } from '@/components/WorldMap';
+import { useTrips, useBucketList, useVisitedPlaces } from '@/hooks/useTravel';
+import { AddTripDialog } from '@/components/travel/AddTripDialog';
+import { AddBucketListDialog } from '@/components/travel/AddBucketListDialog';
+import { AddVisitedPlaceDialog } from '@/components/travel/AddVisitedPlaceDialog';
 
-const mockTrips: Trip[] = [
-  {
-    id: '1',
-    user_id: '1',
-    destination: 'Tokyo, Japan',
-    status: 'booked',
-    start_date: new Date(Date.now() + 60 * 86400000).toISOString(),
-    end_date: new Date(Date.now() + 74 * 86400000).toISOString(),
-    budget: 3000,
-    notes: 'Cherry blossom season!',
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: '2',
-    user_id: '1',
-    destination: 'Barcelona, Spain',
-    status: 'planning',
-    start_date: null,
-    end_date: null,
-    budget: 2000,
-    notes: null,
-    created_at: new Date().toISOString(),
-  },
-];
-
-const bucketList = [
-  { destination: 'Iceland', emoji: '🇮🇸', reason: 'Northern Lights' },
-  { destination: 'New Zealand', emoji: '🇳🇿', reason: 'Adventure sports' },
-  { destination: 'Maldives', emoji: '🇲🇻', reason: 'Beach relaxation' },
-  { destination: 'Peru', emoji: '🇵🇪', reason: 'Machu Picchu' },
-];
 
 const statusConfig = {
   dream: { label: 'Dream', icon: Heart, color: '#EC4899' },
@@ -66,35 +36,22 @@ const statusConfig = {
 
 export function Travel() {
   const { theme } = useAppStore();
-  const [trips, setTrips] = useState<Trip[]>(mockTrips);
+  const { trips, loading: tripsLoading } = useTrips();
+  const { items: bucketList, loading: bucketLoading } = useBucketList();
+  const { places: visitedPlaces, loading: placesLoading } = useVisitedPlaces();
+  
   const [isAddingTrip, setIsAddingTrip] = useState(false);
-  const [newTrip, setNewTrip] = useState({
-    destination: '',
-    status: 'dream' as Trip['status'],
-    budget: 0,
-    notes: '',
-  });
+  const [isAddingBucketItem, setIsAddingBucketItem] = useState(false);
+  const [isAddingPlace, setIsAddingPlace] = useState(false);
 
   const stats = [
     { label: 'Upcoming', value: trips.filter((t) => t.status === 'booked').length },
     { label: 'Planning', value: trips.filter((t) => t.status === 'planning').length },
     { label: 'Bucket List', value: bucketList.length },
-    { label: 'Countries', value: '12 visited' },
+    { label: 'Countries', value: `${visitedPlaces.length} visited` },
   ];
 
-  const addTrip = () => {
-    const trip: Trip = {
-      id: Date.now().toString(),
-      user_id: '1',
-      ...newTrip,
-      start_date: null,
-      end_date: null,
-      created_at: new Date().toISOString(),
-    };
-    setTrips([trip, ...trips]);
-    setIsAddingTrip(false);
-    setNewTrip({ destination: '', status: 'dream', budget: 0, notes: '' });
-  };
+  const loading = tripsLoading || bucketLoading || placesLoading;
 
   return (
     <AspectLayout
@@ -105,9 +62,10 @@ export function Travel() {
       addNewLabel="Add Trip"
     >
       <Tabs defaultValue="trips" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="trips">My Trips</TabsTrigger>
           <TabsTrigger value="bucketlist">Bucket List</TabsTrigger>
+          <TabsTrigger value="map">World Map</TabsTrigger>
           <TabsTrigger value="memories">Memories</TabsTrigger>
         </TabsList>
 
@@ -191,8 +149,8 @@ export function Travel() {
 
         <TabsContent value="bucketlist" className="mt-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {bucketList.map((item, index) => (
-              <Card key={index} className="hover:border-primary/50 transition-colors">
+            {bucketList.map((item) => (
+              <Card key={item.id} className="hover:border-primary/50 transition-colors">
                 <CardContent className="p-4">
                   <div className="flex items-center gap-4">
                     <span className="text-3xl">{item.emoji}</span>
@@ -210,20 +168,17 @@ export function Travel() {
                         {item.reason}
                       </p>
                     </div>
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        setNewTrip({ destination: item.destination, status: 'dream', budget: 0, notes: item.reason });
-                        setIsAddingTrip(true);
-                      }}
+                    <Badge 
+                      variant="outline"
+                      className="text-xs"
                     >
-                      Plan
-                    </Button>
+                      {item.priority}
+                    </Badge>
                   </div>
                 </CardContent>
               </Card>
             ))}
-            <Card className="border-dashed hover:border-primary/50 transition-colors cursor-pointer" onClick={() => setIsAddingTrip(true)}>
+            <Card className="border-dashed hover:border-primary/50 transition-colors cursor-pointer" onClick={() => setIsAddingBucketItem(true)}>
               <CardContent className="p-4 flex items-center justify-center h-full min-h-[80px]">
                 <Plus className={cn(
                   "h-5 w-5 mr-2",
@@ -239,22 +194,25 @@ export function Travel() {
           </div>
         </TabsContent>
 
+        <TabsContent value="map" className="mt-6">
+          <WorldMap 
+            visitedPlaces={visitedPlaces} 
+            color="#06B6D4" 
+            onAddPlace={() => setIsAddingPlace(true)}
+          />
+        </TabsContent>
+
         <TabsContent value="memories" className="mt-6">
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {[
-              { destination: 'Paris', year: '2024', emoji: '🇫🇷' },
-              { destination: 'Bali', year: '2023', emoji: '🇮🇩' },
-              { destination: 'NYC', year: '2023', emoji: '🇺🇸' },
-              { destination: 'London', year: '2022', emoji: '🇬🇧' },
-            ].map((memory, i) => (
-              <Card key={i} className="hover:border-primary/50 transition-colors cursor-pointer">
+            {visitedPlaces.map((memory) => (
+              <Card key={memory.id} className="hover:border-primary/50 transition-colors cursor-pointer">
                 <CardContent className="p-6 text-center">
                   <span className="text-4xl mb-2 block">{memory.emoji}</span>
                   <h4 className={cn(
                     "font-medium",
                     theme === 'light' ? "text-slate-900" : "text-white"
                   )}>
-                    {memory.destination}
+                    {memory.city || memory.country}
                   </h4>
                   <p className={cn(
                     "text-sm",
@@ -262,6 +220,13 @@ export function Travel() {
                   )}>
                     {memory.year}
                   </p>
+                  {memory.rating && (
+                    <div className="flex justify-center gap-1 mt-2">
+                      {Array.from({ length: memory.rating }).map((_, i) => (
+                        <span key={i} className="text-yellow-400">★</span>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}
@@ -270,69 +235,25 @@ export function Travel() {
       </Tabs>
 
       {/* Add Trip Dialog */}
-      <Dialog open={isAddingTrip} onOpenChange={setIsAddingTrip}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Add Trip</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>Destination</Label>
-              <Input
-                placeholder="Where to?"
-                value={newTrip.destination}
-                onChange={(e) => setNewTrip({ ...newTrip, destination: e.target.value })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Status</Label>
-              <div className="flex flex-wrap gap-2">
-                {Object.entries(statusConfig).map(([status, config]) => {
-                  const Icon = config.icon;
-                  return (
-                    <Button
-                      key={status}
-                      type="button"
-                      variant={newTrip.status === status ? 'default' : 'outline'}
-                      size="sm"
-                      style={newTrip.status === status ? { backgroundColor: config.color } : undefined}
-                      onClick={() => setNewTrip({ ...newTrip, status: status as Trip['status'] })}
-                    >
-                      <Icon className="h-4 w-4 mr-1" />
-                      {config.label}
-                    </Button>
-                  );
-                })}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Budget (optional)</Label>
-              <Input
-                type="number"
-                placeholder="0"
-                value={newTrip.budget || ''}
-                onChange={(e) => setNewTrip({ ...newTrip, budget: parseFloat(e.target.value) || 0 })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Notes</Label>
-              <Input
-                placeholder="Any details..."
-                value={newTrip.notes}
-                onChange={(e) => setNewTrip({ ...newTrip, notes: e.target.value })}
-              />
-            </div>
-            <Button
-              className="w-full bg-gradient-to-r from-violet-600 to-pink-600"
-              onClick={addTrip}
-              disabled={!newTrip.destination.trim()}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Trip
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <AddTripDialog
+        open={isAddingTrip}
+        onOpenChange={setIsAddingTrip}
+        onSuccess={() => {}}
+      />
+
+      {/* Add Bucket List Item Dialog */}
+      <AddBucketListDialog
+        open={isAddingBucketItem}
+        onOpenChange={setIsAddingBucketItem}
+        onSuccess={() => {}}
+      />
+
+      {/* Add Visited Place Dialog */}
+      <AddVisitedPlaceDialog
+        open={isAddingPlace}
+        onOpenChange={setIsAddingPlace}
+        onSuccess={() => {}}
+      />
     </AspectLayout>
   );
 }
