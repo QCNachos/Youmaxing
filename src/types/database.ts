@@ -186,6 +186,45 @@ export type Database = {
         }
         Relationships: []
       }
+      bucket_list: {
+        Row: {
+          country: string | null
+          created_at: string | null
+          destination: string
+          emoji: string | null
+          id: string
+          notes: string | null
+          priority: string | null
+          reason: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          country?: string | null
+          created_at?: string | null
+          destination: string
+          emoji?: string | null
+          id?: string
+          notes?: string | null
+          priority?: string | null
+          reason?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          country?: string | null
+          created_at?: string | null
+          destination?: string
+          emoji?: string | null
+          id?: string
+          notes?: string | null
+          priority?: string | null
+          reason?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       business_projects: {
         Row: {
           created_at: string | null
@@ -1024,6 +1063,7 @@ export type Database = {
         Row: {
           budget: number | null
           created_at: string | null
+          current_saved: number | null
           destination: string
           end_date: string | null
           id: string
@@ -1035,6 +1075,7 @@ export type Database = {
         Insert: {
           budget?: number | null
           created_at?: string | null
+          current_saved?: number | null
           destination: string
           end_date?: string | null
           id?: string
@@ -1046,6 +1087,7 @@ export type Database = {
         Update: {
           budget?: number | null
           created_at?: string | null
+          current_saved?: number | null
           destination?: string
           end_date?: string | null
           id?: string
@@ -1053,6 +1095,57 @@ export type Database = {
           start_date?: string | null
           status?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      visited_places: {
+        Row: {
+          city: string | null
+          coordinates_x: number
+          coordinates_y: number
+          country: string
+          created_at: string | null
+          emoji: string | null
+          id: string
+          notes: string | null
+          photos: string[] | null
+          rating: number | null
+          updated_at: string | null
+          user_id: string
+          visited_at: string | null
+          year: number
+        }
+        Insert: {
+          city?: string | null
+          coordinates_x: number
+          coordinates_y: number
+          country: string
+          created_at?: string | null
+          emoji?: string | null
+          id?: string
+          notes?: string | null
+          photos?: string[] | null
+          rating?: number | null
+          updated_at?: string | null
+          user_id: string
+          visited_at?: string | null
+          year: number
+        }
+        Update: {
+          city?: string | null
+          coordinates_x?: number
+          coordinates_y?: number
+          country?: string
+          created_at?: string | null
+          emoji?: string | null
+          id?: string
+          notes?: string | null
+          photos?: string[] | null
+          rating?: number | null
+          updated_at?: string | null
+          user_id?: string
+          visited_at?: string | null
+          year?: number
         }
         Relationships: []
       }
