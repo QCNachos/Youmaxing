@@ -56,10 +56,10 @@ function SettingsContent() {
   ];
   
   return (
-    <div className="min-h-screen bg-background">
+    <div className="fixed inset-0 bg-background overflow-hidden">
       {/* Header */}
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
-        <div className="max-w-4xl mx-auto px-4 h-14 flex items-center gap-4">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-4">
           <Link href="/dashboard">
             <Button variant="ghost" size="icon">
               <ArrowLeft className="h-5 w-5" />
@@ -69,67 +69,69 @@ function SettingsContent() {
         </div>
       </header>
       
-      <main className="max-w-4xl mx-auto px-4 py-6">
-        <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-          {/* Tab Navigation */}
-          <TabsList 
-            className="w-full justify-start h-auto p-1 bg-muted/50 rounded-xl mb-6 flex-wrap"
-            onClick={handleTabClick}
-          >
-            {tabs.map((tab) => (
-              <TabsTrigger 
-                key={tab.id} 
-                value={tab.id}
-                className="flex items-center gap-2 px-4 py-2 data-[state=active]:bg-background"
-              >
-                <tab.icon className="h-4 w-4" />
-                <span className="hidden sm:inline">{tab.label}</span>
-              </TabsTrigger>
-            ))}
-          </TabsList>
-          
-          {/* Profile Tab */}
-          <TabsContent value="profile" className="mt-0">
-            <div className="space-y-4">
-              <ProfileSettings userId={userId} />
-            </div>
-          </TabsContent>
-          
-          {/* Insight Agent Tab */}
-          <TabsContent value="insights" className="mt-0">
-            <div className="space-y-4">
-              <InsightAgentSettings userId={userId} />
-            </div>
-          </TabsContent>
-          
-          {/* Notifications Tab */}
-          <TabsContent value="notifications" className="mt-0">
-            <div className="space-y-4">
-              <NotificationsSettings userId={userId} />
-            </div>
-          </TabsContent>
-          
-          {/* Privacy Tab */}
-          <TabsContent value="privacy" className="mt-0">
-            <div className="space-y-4">
-              <PrivacySettings />
-            </div>
-          </TabsContent>
-          
-          {/* Appearance Tab */}
-          <TabsContent value="appearance" className="mt-0">
-            <div className="space-y-4">
-              <AppearanceSettings />
-            </div>
-          </TabsContent>
-          
-          {/* Billing Tab */}
-          <TabsContent value="billing" className="mt-0">
-            <div className="space-y-4">
-              <BillingSettings />
-            </div>
-          </TabsContent>
-        </Tabs>
+      <main className="h-[calc(100vh-3.5rem)] overflow-y-auto">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
+            {/* Tab Navigation */}
+            <TabsList 
+              className="w-full justify-start h-auto p-1 bg-muted/50 rounded-xl mb-6 flex-wrap gap-1"
+              onClick={handleTabClick}
+            >
+              {tabs.map((tab) => (
+                <TabsTrigger 
+                  key={tab.id} 
+                  value={tab.id}
+                  className="flex items-center gap-2 px-4 py-2.5 data-[state=active]:bg-background rounded-lg"
+                >
+                  <tab.icon className="h-4 w-4" />
+                  <span>{tab.label}</span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+            
+            {/* Profile Tab */}
+            <TabsContent value="profile" className="mt-0">
+              <div className="space-y-4">
+                <ProfileSettings userId={userId} />
+              </div>
+            </TabsContent>
+            
+            {/* Insight Agent Tab */}
+            <TabsContent value="insights" className="mt-0">
+              <div className="space-y-4">
+                <InsightAgentSettings userId={userId} />
+              </div>
+            </TabsContent>
+            
+            {/* Notifications Tab */}
+            <TabsContent value="notifications" className="mt-0">
+              <div className="space-y-4">
+                <NotificationsSettings userId={userId} />
+              </div>
+            </TabsContent>
+            
+            {/* Privacy Tab */}
+            <TabsContent value="privacy" className="mt-0">
+              <div className="space-y-4">
+                <PrivacySettings />
+              </div>
+            </TabsContent>
+            
+            {/* Appearance Tab */}
+            <TabsContent value="appearance" className="mt-0">
+              <div className="space-y-4">
+                <AppearanceSettings />
+              </div>
+            </TabsContent>
+            
+            {/* Billing Tab */}
+            <TabsContent value="billing" className="mt-0">
+              <div className="space-y-4">
+                <BillingSettings />
+              </div>
+            </TabsContent>
+          </Tabs>
+        </div>
       </main>
     </div>
   );
