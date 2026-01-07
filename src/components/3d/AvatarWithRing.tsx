@@ -182,7 +182,7 @@ export function AvatarWithRing({ compact = false }: AvatarWithRingProps) {
   // Calculate positions for 7 visible icons in an elongated ellipse
   const getVisibleAspects = () => {
     const total = aspectsWithoutSettings.length;
-    const visible = [];
+    const visible: { aspect: (typeof aspectsWithoutSettings)[number]; position: number }[] = [];
     for (let i = -3; i <= 3; i++) {
       const index = (currentIndex + i + total) % total;
       visible.push({

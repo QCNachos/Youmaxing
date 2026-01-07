@@ -13,6 +13,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useAppStore } from '@/lib/store';
+import { cn } from '@/lib/utils';
 import { 
   Music as MusicIcon,
   Disc3,
@@ -96,6 +98,7 @@ interface MusicProps {
 }
 
 export function Music({ isConnected = false, onConnect }: MusicProps) {
+  const { theme } = useAppStore();
   const [library, setLibrary] = useState<MusicLibraryItem[]>(mockLibrary);
   const [isConnecting, setIsConnecting] = useState(false);
   const [filterTier, setFilterTier] = useState<FilmTier | 'all'>('all');
@@ -166,14 +169,27 @@ export function Music({ isConnected = false, onConnect }: MusicProps) {
           </div>
           
           <div className="flex-1 min-w-0">
-            <h4 className="font-medium text-sm truncate">{item.title}</h4>
-            <p className="text-xs text-muted-foreground truncate">
+            <h4 className={cn(
+              "font-medium text-sm truncate",
+              theme === 'light' ? "text-slate-900" : "text-white"
+            )}>
+              {item.title}
+            </h4>
+            <p className={cn(
+              "text-xs truncate",
+              theme === 'light' ? "text-slate-500" : "text-white/60"
+            )}>
               {item.artist} • {item.album}
             </p>
             <div className="flex items-center gap-2 mt-1">
               {renderTierBadge(item.tier)}
               {item.release_year && (
-                <span className="text-xs text-muted-foreground">{item.release_year}</span>
+                <span className={cn(
+                  "text-xs",
+                  theme === 'light' ? "text-slate-500" : "text-white/60"
+                )}>
+                  {item.release_year}
+                </span>
               )}
             </div>
           </div>
@@ -198,8 +214,18 @@ export function Music({ isConnected = false, onConnect }: MusicProps) {
             <MusicIcon className="h-7 w-7 text-green-500" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Music</h1>
-            <p className="text-muted-foreground">Track your favorite music with Spotify</p>
+            <h1 className={cn(
+              "text-2xl font-bold",
+              theme === 'light' ? "text-slate-900" : "text-white"
+            )}>
+              Music
+            </h1>
+            <p className={cn(
+              "text-sm",
+              theme === 'light' ? "text-slate-500" : "text-white/60"
+            )}>
+              Track your favorite music with Spotify
+            </p>
           </div>
         </div>
         
@@ -209,8 +235,16 @@ export function Music({ isConnected = false, onConnect }: MusicProps) {
             <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center mb-6">
               <Disc3 className="h-10 w-10 text-green-500" />
             </div>
-            <h3 className="text-xl font-semibold mb-2">Connect Your Spotify</h3>
-            <p className="text-muted-foreground mb-6 max-w-md">
+            <h3 className={cn(
+              "text-xl font-semibold mb-2",
+              theme === 'light' ? "text-slate-900" : "text-white"
+            )}>
+              Connect Your Spotify
+            </h3>
+            <p className={cn(
+              "text-sm mb-6 max-w-md",
+              theme === 'light' ? "text-slate-500" : "text-white/60"
+            )}>
               Connect your Spotify account to import your library, rate your favorite tracks,
               and get personalized music recommendations.
             </p>
@@ -235,8 +269,18 @@ export function Music({ isConnected = false, onConnect }: MusicProps) {
             <CardContent className="p-4 flex items-start gap-3">
               <ListMusic className="h-5 w-5 text-green-500 mt-0.5" />
               <div>
-                <h4 className="font-medium text-sm">Import Library</h4>
-                <p className="text-xs text-muted-foreground">Sync your saved tracks and playlists</p>
+                <h4 className={cn(
+                  "font-medium text-sm",
+                  theme === 'light' ? "text-slate-900" : "text-white"
+                )}>
+                  Import Library
+                </h4>
+                <p className={cn(
+                  "text-xs",
+                  theme === 'light' ? "text-slate-500" : "text-white/60"
+                )}>
+                  Sync your saved tracks and playlists
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -244,8 +288,18 @@ export function Music({ isConnected = false, onConnect }: MusicProps) {
             <CardContent className="p-4 flex items-start gap-3">
               <Crown className="h-5 w-5 text-yellow-500 mt-0.5" />
               <div>
-                <h4 className="font-medium text-sm">Rate & Tier</h4>
-                <p className="text-xs text-muted-foreground">Organize music from LEGENDARY to meh</p>
+                <h4 className={cn(
+                  "font-medium text-sm",
+                  theme === 'light' ? "text-slate-900" : "text-white"
+                )}>
+                  Rate & Tier
+                </h4>
+                <p className={cn(
+                  "text-xs",
+                  theme === 'light' ? "text-slate-500" : "text-white/60"
+                )}>
+                  Organize music from LEGENDARY to meh
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -253,8 +307,18 @@ export function Music({ isConnected = false, onConnect }: MusicProps) {
             <CardContent className="p-4 flex items-start gap-3">
               <Sparkles className="h-5 w-5 text-violet-500 mt-0.5" />
               <div>
-                <h4 className="font-medium text-sm">Get Recommendations</h4>
-                <p className="text-xs text-muted-foreground">Discover new music you'll love</p>
+                <h4 className={cn(
+                  "font-medium text-sm",
+                  theme === 'light' ? "text-slate-900" : "text-white"
+                )}>
+                  Get Recommendations
+                </h4>
+                <p className={cn(
+                  "text-xs",
+                  theme === 'light' ? "text-slate-500" : "text-white/60"
+                )}>
+                  Discover new music you'll love
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -273,8 +337,18 @@ export function Music({ isConnected = false, onConnect }: MusicProps) {
             <MusicIcon className="h-7 w-7 text-green-500" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">Music</h1>
-            <p className="text-muted-foreground">Your music library</p>
+            <h1 className={cn(
+              "text-2xl font-bold",
+              theme === 'light' ? "text-slate-900" : "text-white"
+            )}>
+              Music
+            </h1>
+            <p className={cn(
+              "text-sm",
+              theme === 'light' ? "text-slate-500" : "text-white/60"
+            )}>
+              Your music library
+            </p>
           </div>
         </div>
         <Badge className="bg-green-500/20 text-green-500 border-green-500/50">
@@ -288,8 +362,18 @@ export function Music({ isConnected = false, onConnect }: MusicProps) {
         {stats.map((stat, index) => (
           <Card key={index}>
             <CardContent className="p-4">
-              <p className="text-sm text-muted-foreground">{stat.label}</p>
-              <p className="text-2xl font-bold mt-1">{stat.value}</p>
+              <p className={cn(
+                "text-sm",
+                theme === 'light' ? "text-slate-500" : "text-white/60"
+              )}>
+                {stat.label}
+              </p>
+              <p className={cn(
+                "text-2xl font-bold mt-1",
+                theme === 'light' ? "text-slate-900" : "text-white"
+              )}>
+                {stat.value}
+              </p>
             </CardContent>
           </Card>
         ))}
@@ -361,9 +445,20 @@ export function Music({ isConnected = false, onConnect }: MusicProps) {
         <TabsContent value="playlists" className="mt-6">
           <Card className="border-dashed">
             <CardContent className="p-12 flex flex-col items-center text-center">
-              <ListMusic className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Your Playlists</h3>
-              <p className="text-muted-foreground mb-4">
+              <ListMusic className={cn(
+                "h-12 w-12 mb-4",
+                theme === 'light' ? "text-slate-400" : "text-white/40"
+              )} />
+              <h3 className={cn(
+                "text-lg font-semibold mb-2",
+                theme === 'light' ? "text-slate-900" : "text-white"
+              )}>
+                Your Playlists
+              </h3>
+              <p className={cn(
+                "text-sm mb-4",
+                theme === 'light' ? "text-slate-500" : "text-white/60"
+              )}>
                 Sync your Spotify playlists to rate and share them.
               </p>
               <Button variant="outline">
@@ -380,8 +475,16 @@ export function Music({ isConnected = false, onConnect }: MusicProps) {
               <div className="flex items-start gap-3">
                 <Sparkles className="h-5 w-5 text-violet-500 mt-0.5" />
                 <div>
-                  <h4 className="font-medium">Personalized Recommendations</h4>
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <h4 className={cn(
+                    "font-medium",
+                    theme === 'light' ? "text-slate-900" : "text-white"
+                  )}>
+                    Personalized Recommendations
+                  </h4>
+                  <p className={cn(
+                    "text-sm mt-1",
+                    theme === 'light' ? "text-slate-600" : "text-white/70"
+                  )}>
                     Based on your LEGENDARY tracks like "Mr. Brightside" and "Bohemian Rhapsody",
                     you might love classic rock anthems with strong vocals. More recommendations coming soon!
                   </p>

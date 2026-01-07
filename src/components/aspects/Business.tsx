@@ -9,6 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAppStore } from '@/lib/store';
+import { cn } from '@/lib/utils';
 import { 
   Briefcase,
   Lightbulb,
@@ -70,6 +72,7 @@ const priorityColors = {
 };
 
 export function Business() {
+  const { theme } = useAppStore();
   const [projects, setProjects] = useState<BusinessProject[]>(mockProjects);
   const [isAddingProject, setIsAddingProject] = useState(false);
   const [newProject, setNewProject] = useState({
@@ -128,7 +131,7 @@ export function Business() {
               {projects
                 .filter((p) => p.status !== 'idea')
                 .map((project) => {
-                  const config = statusConfig[project.status];
+                  const config = statusConfig[project.status as keyof typeof statusConfig];
                   const StatusIcon = config.icon;
                   return (
                     <Card key={project.id} className="hover:border-primary/50 transition-colors">
@@ -142,16 +145,26 @@ export function Business() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
-                              <h4 className="font-medium">{project.name}</h4>
+                              <h4 className={cn(
+                                "font-medium",
+                                theme === 'light' ? "text-slate-900" : "text-white"
+                              )}>
+                                {project.name}
+                              </h4>
                               <Badge
                                 variant="secondary"
-                                style={{ backgroundColor: `${priorityColors[project.priority]}20`, color: priorityColors[project.priority] }}
+                                style={{ backgroundColor: `${priorityColors[project.priority as keyof typeof priorityColors]}20`, color: priorityColors[project.priority as keyof typeof priorityColors] }}
                               >
                                 {project.priority}
                               </Badge>
                             </div>
                             {project.description && (
-                              <p className="text-sm text-muted-foreground">{project.description}</p>
+                              <p className={cn(
+                                "text-sm",
+                                theme === 'light' ? "text-slate-500" : "text-white/60"
+                              )}>
+                                {project.description}
+                              </p>
                             )}
                             <div className="flex items-center gap-3 mt-2">
                               <Badge
@@ -162,7 +175,10 @@ export function Business() {
                                 {config.label}
                               </Badge>
                               {project.deadline && (
-                                <span className="text-sm text-muted-foreground flex items-center gap-1">
+                                <span className={cn(
+                                  "text-sm flex items-center gap-1",
+                                  theme === 'light' ? "text-slate-500" : "text-white/60"
+                                )}>
                                   <Clock className="h-3 w-3" />
                                   Due in 30 days
                                 </span>
@@ -190,10 +206,20 @@ export function Business() {
                   <CardContent className="p-4">
                     <div className="flex items-center gap-2 mb-2">
                       <Lightbulb className="h-5 w-5 text-yellow-500" />
-                      <h4 className="font-medium">{project.name}</h4>
+                      <h4 className={cn(
+                        "font-medium",
+                        theme === 'light' ? "text-slate-900" : "text-white"
+                      )}>
+                        {project.name}
+                      </h4>
                     </div>
                     {project.description && (
-                      <p className="text-sm text-muted-foreground mb-3">{project.description}</p>
+                      <p className={cn(
+                        "text-sm mb-3",
+                        theme === 'light' ? "text-slate-500" : "text-white/60"
+                      )}>
+                        {project.description}
+                      </p>
                     )}
                     <Button size="sm" className="w-full">
                       Start Project
@@ -203,8 +229,16 @@ export function Business() {
               ))}
             <Card className="border-dashed hover:border-primary/50 transition-colors cursor-pointer" onClick={() => setIsAddingProject(true)}>
               <CardContent className="p-4 flex flex-col items-center justify-center h-full min-h-[120px]">
-                <Plus className="h-8 w-8 text-muted-foreground mb-2" />
-                <p className="text-sm text-muted-foreground">Add New Idea</p>
+                <Plus className={cn(
+                  "h-8 w-8 mb-2",
+                  theme === 'light' ? "text-slate-400" : "text-white/40"
+                )} />
+                <p className={cn(
+                  "text-sm",
+                  theme === 'light' ? "text-slate-500" : "text-white/60"
+                )}>
+                  Add New Idea
+                </p>
               </CardContent>
             </Card>
           </div>
@@ -214,11 +248,20 @@ export function Business() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>Focus Time This Week</CardTitle>
+                <CardTitle className={cn(
+                  theme === 'light' ? "text-slate-900" : "text-white"
+                )}>
+                  Focus Time This Week
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-center py-4">
-                  <p className="text-4xl font-bold">18h 30m</p>
+                  <p className={cn(
+                    "text-4xl font-bold",
+                    theme === 'light' ? "text-slate-900" : "text-white"
+                  )}>
+                    18h 30m
+                  </p>
                   <p className="text-sm text-green-500 mt-1">+3h from last week</p>
                 </div>
                 <div className="flex justify-between items-end h-24 mt-4">
@@ -230,7 +273,12 @@ export function Business() {
                           className="w-8 rounded-t-md bg-gradient-to-t from-blue-600 to-blue-400"
                           style={{ height: `${height}%`, minHeight: height > 0 ? '4px' : '0' }}
                         />
-                        <span className="text-xs text-muted-foreground">{day}</span>
+                        <span className={cn(
+                          "text-xs",
+                          theme === 'light' ? "text-slate-500" : "text-white/60"
+                        )}>
+                          {day}
+                        </span>
                       </div>
                     );
                   })}
@@ -240,7 +288,11 @@ export function Business() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Quick Actions</CardTitle>
+                <CardTitle className={cn(
+                  theme === 'light' ? "text-slate-900" : "text-white"
+                )}>
+                  Quick Actions
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 {[

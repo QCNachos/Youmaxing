@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
@@ -10,6 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
+import { useAppStore } from '@/lib/store';
+import { cn } from '@/lib/utils';
 import { 
   Utensils, 
   Coffee,
@@ -370,20 +373,20 @@ export function Food() {
     const meal: Meal = {
       id: Date.now().toString(),
       user_id: '1',
-      name: analysisResult.foods.map(f => f.name).join(', '),
+      name: analysisResult.foods.map((f: any) => f.name).join(', '),
       type: analysisResult.meal_type_guess || newMeal.type,
       calories: analysisResult.total_calories,
       protein: analysisResult.total_protein,
       carbs: analysisResult.total_carbs,
       fat: analysisResult.total_fat,
-      fiber: analysisResult.foods.reduce((sum, f) => sum + (f.fiber || 0), 0),
-      sugar: analysisResult.foods.reduce((sum, f) => sum + (f.sugar || 0), 0),
+      fiber: analysisResult.foods.reduce((sum: number, f: any) => sum + (f.fiber || 0), 0),
+      sugar: analysisResult.foods.reduce((sum: number, f: any) => sum + (f.sugar || 0), 0),
       sodium: null,
       serving_size: null,
       image_url: null,
       ai_analyzed: true,
       ai_confidence: analysisResult.confidence,
-      ingredients: analysisResult.foods.map(f => ({
+      ingredients: analysisResult.foods.map((f: any) => ({
         name: f.name,
         quantity: f.quantity,
         unit: f.unit,
@@ -515,8 +518,8 @@ export function Food() {
             />
           ) : (
             <div className="space-y-4">
-              {meals.map((meal) => {
-                const config = mealTypeConfig[meal.type];
+              {meals.map((meal: any) => {
+                const config = mealTypeConfig[meal.type as keyof typeof mealTypeConfig];
                 const Icon = config.icon;
                 return (
                   <Card key={meal.id} className="hover:border-primary/50 transition-colors">
@@ -639,8 +642,8 @@ export function Food() {
           </div>
           
           <div className="space-y-4">
-            {supplements.map((supplement) => {
-              const config = supplementTypeConfig[supplement.type];
+            {supplements.map((supplement: any) => {
+              const config = supplementTypeConfig[supplement.type as keyof typeof supplementTypeConfig];
               const Icon = config.icon;
               return (
                 <Card key={supplement.id} className="hover:border-primary/50 transition-colors">
@@ -1025,7 +1028,7 @@ export function Food() {
 
               <Card>
                 <CardContent className="p-4 space-y-3">
-                  {analysisResult.foods.map((food, idx) => (
+                  {analysisResult.foods.map((food: any, idx: number) => (
                     <div key={idx} className="flex items-center justify-between">
                       <div>
                         <p className="font-medium">{food.name}</p>
@@ -1060,7 +1063,7 @@ export function Food() {
                 <div className="text-sm text-muted-foreground">
                   <p className="font-medium text-foreground mb-1">Tips:</p>
                   <ul className="list-disc list-inside space-y-1">
-                    {analysisResult.suggestions.map((tip, idx) => (
+                    {analysisResult.suggestions.map((tip: string, idx: number) => (
                       <li key={idx}>{tip}</li>
                     ))}
                   </ul>

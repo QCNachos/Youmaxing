@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import { useState } from 'react';
@@ -10,6 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
+import { useAppStore } from '@/lib/store';
+import { cn } from '@/lib/utils';
 import { 
   DollarSign,
   TrendingUp,
@@ -75,6 +78,7 @@ const typeConfig = {
 };
 
 export function Finance() {
+  const { theme } = useAppStore();
   const [entries, setEntries] = useState<FinanceEntry[]>(mockEntries);
   const [isAddingEntry, setIsAddingEntry] = useState(false);
   const [newEntry, setNewEntry] = useState({
@@ -135,8 +139,8 @@ export function Finance() {
             />
           ) : (
             <div className="space-y-4">
-              {entries.map((entry) => {
-                const config = typeConfig[entry.type];
+              {entries.map((entry: any) => {
+                const config = typeConfig[entry.type as keyof typeof typeConfig];
                 const Icon = config.icon;
                 return (
                   <Card key={entry.id} className="hover:border-primary/50 transition-colors">
@@ -149,7 +153,12 @@ export function Finance() {
                           <Icon className="h-6 w-6" style={{ color: config.color }} />
                         </div>
                         <div className="flex-1">
-                          <h4 className="font-medium">{entry.category}</h4>
+                          <h4 className={cn(
+                            "font-medium",
+                            theme === 'light' ? "text-slate-900" : "text-white"
+                          )}>
+                            {entry.category}
+                          </h4>
                           <div className="flex items-center gap-3 mt-1">
                             <Badge
                               variant="secondary"
@@ -158,7 +167,12 @@ export function Finance() {
                               {config.label}
                             </Badge>
                             {entry.description && (
-                              <span className="text-sm text-muted-foreground">{entry.description}</span>
+                              <span className={cn(
+                                "text-sm",
+                                theme === 'light' ? "text-slate-500" : "text-white/60"
+                              )}>
+                                {entry.description}
+                              </span>
                             )}
                           </div>
                         </div>
@@ -169,7 +183,10 @@ export function Finance() {
                           >
                             {entry.type === 'expense' ? '-' : '+'}${entry.amount.toLocaleString()}
                           </p>
-                          <p className="text-sm text-muted-foreground">
+                          <p className={cn(
+                            "text-sm",
+                            theme === 'light' ? "text-slate-500" : "text-white/60"
+                          )}>
                             {format(new Date(entry.date), 'MMM d')}
                           </p>
                         </div>
@@ -192,8 +209,16 @@ export function Finance() {
                     <div className="flex items-center gap-4 mb-3">
                       <span className="text-2xl">{goal.emoji}</span>
                       <div className="flex-1">
-                        <h4 className="font-medium">{goal.name}</h4>
-                        <p className="text-sm text-muted-foreground">
+                        <h4 className={cn(
+                          "font-medium",
+                          theme === 'light' ? "text-slate-900" : "text-white"
+                        )}>
+                          {goal.name}
+                        </h4>
+                        <p className={cn(
+                          "text-sm",
+                          theme === 'light' ? "text-slate-500" : "text-white/60"
+                        )}>
                           ${goal.current.toLocaleString()} of ${goal.target.toLocaleString()}
                         </p>
                       </div>
@@ -215,7 +240,10 @@ export function Finance() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className={cn(
+                  "flex items-center gap-2",
+                  theme === 'light' ? "text-slate-900" : "text-white"
+                )}>
                   <Wallet className="h-5 w-5 text-green-500" />
                   Monthly Budget
                 </CardTitle>
@@ -229,8 +257,16 @@ export function Finance() {
                 ].map((item) => (
                   <div key={item.category}>
                     <div className="flex justify-between mb-1">
-                      <span className="text-sm">{item.category}</span>
-                      <span className="text-sm text-muted-foreground">
+                      <span className={cn(
+                        "text-sm",
+                        theme === 'light' ? "text-slate-900" : "text-white"
+                      )}>
+                        {item.category}
+                      </span>
+                      <span className={cn(
+                        "text-sm",
+                        theme === 'light' ? "text-slate-500" : "text-white/60"
+                      )}>
                         ${item.spent} / ${item.budget}
                       </span>
                     </div>
@@ -242,14 +278,22 @@ export function Finance() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className={cn(
+                  "flex items-center gap-2",
+                  theme === 'light' ? "text-slate-900" : "text-white"
+                )}>
                   <TrendingUp className="h-5 w-5 text-blue-500" />
                   Investments
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-center py-4">
-                  <p className="text-3xl font-bold">$12,450</p>
+                  <p className={cn(
+                    "text-3xl font-bold",
+                    theme === 'light' ? "text-slate-900" : "text-white"
+                  )}>
+                    $12,450
+                  </p>
                   <p className="text-sm text-green-500 mt-1">+5.2% this month</p>
                 </div>
                 <div className="space-y-2 mt-4">
@@ -259,9 +303,18 @@ export function Finance() {
                     { name: 'Crypto', value: '$1,150', change: '+12.3%' },
                   ].map((inv) => (
                     <div key={inv.name} className="flex items-center justify-between text-sm">
-                      <span>{inv.name}</span>
+                      <span className={cn(
+                        theme === 'light' ? "text-slate-900" : "text-white"
+                      )}>
+                        {inv.name}
+                      </span>
                       <div className="text-right">
-                        <span className="font-medium">{inv.value}</span>
+                        <span className={cn(
+                          "font-medium",
+                          theme === 'light' ? "text-slate-900" : "text-white"
+                        )}>
+                          {inv.value}
+                        </span>
                         <span className="text-green-500 ml-2">{inv.change}</span>
                       </div>
                     </div>

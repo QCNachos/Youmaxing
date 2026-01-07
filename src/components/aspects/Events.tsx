@@ -10,6 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar } from '@/components/ui/calendar';
+import { useAppStore } from '@/lib/store';
+import { cn } from '@/lib/utils';
 import { 
   CalendarDays,
   Clock,
@@ -65,6 +67,7 @@ const invitations = [
 ];
 
 export function Events() {
+  const { theme } = useAppStore();
   const [events, setEvents] = useState<CalendarEvent[]>(mockEvents);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [isAddingEvent, setIsAddingEvent] = useState(false);
@@ -134,13 +137,21 @@ export function Events() {
             </Card>
 
             <div>
-              <h3 className="font-semibold mb-4">
+              <h3 className={cn(
+                "font-semibold mb-4",
+                theme === 'light' ? "text-slate-900" : "text-white"
+              )}>
                 {selectedDate ? format(selectedDate, 'EEEE, MMMM d') : 'Select a date'}
               </h3>
               {todayEvents.length === 0 ? (
                 <Card className="border-dashed">
                   <CardContent className="p-6 text-center">
-                    <p className="text-muted-foreground mb-4">No events on this day</p>
+                    <p className={cn(
+                      "text-sm mb-4",
+                      theme === 'light' ? "text-slate-500" : "text-white/60"
+                    )}>
+                      No events on this day
+                    </p>
                     <Button onClick={() => setIsAddingEvent(true)}>
                       <Plus className="h-4 w-4 mr-2" />
                       Add Event
@@ -158,9 +169,19 @@ export function Events() {
                             style={{ backgroundColor: getAspectColor(event.aspect) }}
                           />
                           <div className="flex-1">
-                            <h4 className="font-medium">{event.title}</h4>
+                            <h4 className={cn(
+                              "font-medium",
+                              theme === 'light' ? "text-slate-900" : "text-white"
+                            )}>
+                              {event.title}
+                            </h4>
                             {event.description && (
-                              <p className="text-sm text-muted-foreground">{event.description}</p>
+                              <p className={cn(
+                                "text-sm",
+                                theme === 'light' ? "text-slate-500" : "text-white/60"
+                              )}>
+                                {event.description}
+                              </p>
                             )}
                             <div className="flex items-center gap-2 mt-2">
                               <Badge
@@ -203,8 +224,16 @@ export function Events() {
                         <CalendarDays className="h-6 w-6 text-violet-500" />
                       </div>
                       <div className="flex-1">
-                        <h4 className="font-medium">{invite.title}</h4>
-                        <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
+                        <h4 className={cn(
+                          "font-medium",
+                          theme === 'light' ? "text-slate-900" : "text-white"
+                        )}>
+                          {invite.title}
+                        </h4>
+                        <div className={cn(
+                          "flex items-center gap-3 mt-1 text-sm",
+                          theme === 'light' ? "text-slate-500" : "text-white/60"
+                        )}>
                           <span className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
                             {invite.date}
@@ -243,9 +272,17 @@ export function Events() {
                       <CalendarDays className="h-6 w-6" style={{ color: getAspectColor(event.aspect) }} />
                     </div>
                     <div className="flex-1">
-                      <h4 className="font-medium">{event.title}</h4>
+                      <h4 className={cn(
+                        "font-medium",
+                        theme === 'light' ? "text-slate-900" : "text-white"
+                      )}>
+                        {event.title}
+                      </h4>
                       <div className="flex items-center gap-3 mt-1">
-                        <span className="text-sm text-muted-foreground flex items-center gap-1">
+                        <span className={cn(
+                          "text-sm flex items-center gap-1",
+                          theme === 'light' ? "text-slate-500" : "text-white/60"
+                        )}>
                           <Clock className="h-3 w-3" />
                           {format(new Date(event.start_date), 'MMM d, h:mm a')}
                         </span>

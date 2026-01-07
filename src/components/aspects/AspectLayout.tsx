@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Sparkles, TrendingUp } from 'lucide-react';
 import { aspects } from '@/lib/aspects';
+import { useAppStore } from '@/lib/store';
+import { cn } from '@/lib/utils';
 import type { AspectType } from '@/types/database';
 import type { LucideIcon } from 'lucide-react';
 
@@ -25,6 +27,7 @@ export function AspectLayout({
   onAddNew,
   addNewLabel = 'Add New',
 }: AspectLayoutProps) {
+  const { theme } = useAppStore();
   const aspect = aspects.find((a) => a.id === aspectId);
   if (!aspect) return null;
 
@@ -42,8 +45,18 @@ export function AspectLayout({
             <Icon className="h-7 w-7" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold">{aspect.name}</h1>
-            <p className="text-muted-foreground">{aspect.description}</p>
+            <h1 className={cn(
+              "text-2xl font-bold",
+              theme === 'light' ? "text-slate-900" : "text-white"
+            )}>
+              {aspect.name}
+            </h1>
+            <p className={cn(
+              "text-sm",
+              theme === 'light' ? "text-slate-500" : "text-white/60"
+            )}>
+              {aspect.description}
+            </p>
           </div>
         </div>
         {onAddNew && (
@@ -63,9 +76,19 @@ export function AspectLayout({
           {stats.map((stat, index) => (
             <Card key={index}>
               <CardContent className="p-4">
-                <p className="text-sm text-muted-foreground">{stat.label}</p>
+                <p className={cn(
+                  "text-sm",
+                  theme === 'light' ? "text-slate-500" : "text-white/60"
+                )}>
+                  {stat.label}
+                </p>
                 <div className="flex items-center gap-2 mt-1">
-                  <p className="text-2xl font-bold">{stat.value}</p>
+                  <p className={cn(
+                    "text-2xl font-bold",
+                    theme === 'light' ? "text-slate-900" : "text-white"
+                  )}>
+                    {stat.value}
+                  </p>
                   {stat.trend && (
                     <TrendingUp
                       className={`h-4 w-4 ${
@@ -89,7 +112,12 @@ export function AspectLayout({
             </div>
             <div>
               <p className="font-medium text-sm text-violet-400">AI Insight</p>
-              <p className="text-sm text-muted-foreground mt-1">{aiInsight}</p>
+              <p className={cn(
+                "text-sm mt-1",
+                theme === 'light' ? "text-slate-600" : "text-white/70"
+              )}>
+                {aiInsight}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -111,14 +139,29 @@ interface EmptyStateProps {
 }
 
 export function EmptyState({ icon: Icon, title, description, actionLabel, onAction }: EmptyStateProps) {
+  const { theme } = useAppStore();
+  
   return (
     <Card className="border-dashed">
       <CardContent className="p-12 flex flex-col items-center text-center">
         <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mb-4">
-          <Icon className="h-8 w-8 text-muted-foreground" />
+          <Icon className={cn(
+            "h-8 w-8",
+            theme === 'light' ? "text-slate-400" : "text-white/40"
+          )} />
         </div>
-        <h3 className="text-lg font-semibold mb-2">{title}</h3>
-        <p className="text-muted-foreground mb-6 max-w-sm">{description}</p>
+        <h3 className={cn(
+          "text-lg font-semibold mb-2",
+          theme === 'light' ? "text-slate-900" : "text-white"
+        )}>
+          {title}
+        </h3>
+        <p className={cn(
+          "text-sm mb-6 max-w-sm",
+          theme === 'light' ? "text-slate-500" : "text-white/60"
+        )}>
+          {description}
+        </p>
         <Button onClick={onAction}>
           <Plus className="h-4 w-4 mr-2" />
           {actionLabel}
@@ -140,6 +183,8 @@ interface ItemCardProps {
 }
 
 export function ItemCard({ title, subtitle, badges, metadata, onClick }: ItemCardProps) {
+  const { theme } = useAppStore();
+  
   return (
     <Card
       className="cursor-pointer hover:border-primary/50 transition-colors"
@@ -148,9 +193,19 @@ export function ItemCard({ title, subtitle, badges, metadata, onClick }: ItemCar
       <CardContent className="p-4">
         <div className="flex items-start justify-between">
           <div className="flex-1">
-            <h4 className="font-medium">{title}</h4>
+            <h4 className={cn(
+              "font-medium",
+              theme === 'light' ? "text-slate-900" : "text-white"
+            )}>
+              {title}
+            </h4>
             {subtitle && (
-              <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
+              <p className={cn(
+                "text-sm mt-1",
+                theme === 'light' ? "text-slate-500" : "text-white/60"
+              )}>
+                {subtitle}
+              </p>
             )}
             {badges && badges.length > 0 && (
               <div className="flex gap-2 mt-2 flex-wrap">
@@ -170,7 +225,12 @@ export function ItemCard({ title, subtitle, badges, metadata, onClick }: ItemCar
             )}
           </div>
           {metadata && (
-            <span className="text-sm text-muted-foreground">{metadata}</span>
+            <span className={cn(
+              "text-sm",
+              theme === 'light' ? "text-slate-500" : "text-white/60"
+            )}>
+              {metadata}
+            </span>
           )}
         </div>
       </CardContent>

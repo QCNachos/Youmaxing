@@ -30,16 +30,18 @@ import {
 import type { SocialFeedItem, FeedType } from '@/types/database';
 
 // Feed type configuration
-const feedTypeConfig: Record<FeedType, { 
+const feedTypeConfig: Partial<Record<FeedType, { 
   icon: typeof Share2; 
   color: string; 
   label: string;
-}> = {
+}>> = {
   list_shared: { icon: Share2, color: '#8B5CF6', label: 'Shared a list' },
   recommendation: { icon: Award, color: '#3B82F6', label: 'New recommendation' },
   achievement: { icon: Award, color: '#F59E0B', label: 'Achievement unlocked' },
   tip_received: { icon: Gift, color: '#22C55E', label: 'Received a tip' },
   friend_added: { icon: UserPlus, color: '#EC4899', label: 'New friend' },
+  friend_activity: { icon: UserPlus, color: '#EC4899', label: 'Friend activity' },
+  shared_list: { icon: Share2, color: '#8B5CF6', label: 'Shared a list' },
 };
 
 // Mock feed items

@@ -9,6 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAppStore } from '@/lib/store';
+import { cn } from '@/lib/utils';
 import { 
   Heart,
   Calendar,
@@ -63,6 +65,7 @@ const giftIdeas = [
 ];
 
 export function Family() {
+  const { theme } = useAppStore();
   const [members, setMembers] = useState<FamilyMember[]>(mockMembers);
   const [isAddingMember, setIsAddingMember] = useState(false);
   const [newMember, setNewMember] = useState({
@@ -135,15 +138,28 @@ export function Family() {
                         💕
                       </div>
                       <div className="flex-1">
-                        <h4 className="font-semibold">{member.name}</h4>
-                        <p className="text-sm text-muted-foreground">{member.relationship}</p>
+                        <h4 className={cn(
+                          "font-semibold",
+                          theme === 'light' ? "text-slate-900" : "text-white"
+                        )}>
+                          {member.name}
+                        </h4>
+                        <p className={cn(
+                          "text-sm",
+                          theme === 'light' ? "text-slate-500" : "text-white/60"
+                        )}>
+                          {member.relationship}
+                        </p>
                         {member.birthday && (
                           <div className="flex items-center gap-2 mt-1">
                             <Badge variant="secondary" className="text-xs">
                               <Cake className="h-3 w-3 mr-1" />
                               {format(new Date(member.birthday), 'MMM d')}
                             </Badge>
-                            <span className="text-xs text-muted-foreground">
+                            <span className={cn(
+                              "text-xs",
+                              theme === 'light' ? "text-slate-500" : "text-white/60"
+                            )}>
                               in {getDaysUntilBirthday(member.birthday)} days
                             </span>
                           </div>
@@ -159,7 +175,12 @@ export function Family() {
                       </div>
                     </div>
                     {member.notes && (
-                      <p className="text-sm text-muted-foreground mt-3 pl-[72px]">{member.notes}</p>
+                      <p className={cn(
+                        "text-sm mt-3 pl-[72px]",
+                        theme === 'light' ? "text-slate-500" : "text-white/60"
+                      )}>
+                        {member.notes}
+                      </p>
                     )}
                   </CardContent>
                 </Card>
@@ -182,8 +203,18 @@ export function Family() {
                       )}
                     </div>
                     <div className="flex-1">
-                      <h4 className="font-medium">{event.title}</h4>
-                      <p className="text-sm text-muted-foreground">{event.date}</p>
+                      <h4 className={cn(
+                        "font-medium",
+                        theme === 'light' ? "text-slate-900" : "text-white"
+                      )}>
+                        {event.title}
+                      </h4>
+                      <p className={cn(
+                        "text-sm",
+                        theme === 'light' ? "text-slate-500" : "text-white/60"
+                      )}>
+                        {event.date}
+                      </p>
                     </div>
                     <Button size="sm" variant="outline">
                       Set Reminder
@@ -200,7 +231,10 @@ export function Family() {
             {giftIdeas.map((person, index) => (
               <Card key={index}>
                 <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
+                  <CardTitle className={cn(
+                    "flex items-center gap-2",
+                    theme === 'light' ? "text-slate-900" : "text-white"
+                  )}>
                     <Gift className="h-5 w-5 text-pink-500" />
                     Gift Ideas for {person.person}
                   </CardTitle>

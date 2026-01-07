@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import { useState } from 'react';
@@ -9,6 +10,8 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAppStore } from '@/lib/store';
+import { cn } from '@/lib/utils';
 import { 
   Users,
   MessageCircle,
@@ -17,10 +20,15 @@ import {
   Plus,
   Clock,
   Coffee,
-  Beer,
 } from 'lucide-react';
 import type { Friend } from '@/types/database';
 import { formatDistanceToNow } from 'date-fns';
+
+// Helper to calculate days since - moved outside component for purity
+const getDaysSince = (dateStr: string | null, nowTimestamp: number): number => {
+  if (!dateStr) return Infinity;
+  return Math.floor((nowTimestamp - new Date(dateStr).getTime()) / 86400000);
+};
 
 const mockFriends: Friend[] = [
   {
@@ -62,6 +70,7 @@ const hangoutIdeas = [
 ];
 
 export function Friends() {
+  const { theme } = useAppStore();
   const [friends, setFriends] = useState<Friend[]>(mockFriends);
   const [isAddingFriend, setIsAddingFriend] = useState(false);
   const [newFriend, setNewFriend] = useState({
@@ -70,9 +79,11 @@ export function Friends() {
     notes: '',
   });
 
+  const [currentTime] = useState(() => Date.now());
+
   const getContactStatus = (lastContact: string | null) => {
     if (!lastContact) return { label: 'Never', color: '#6B7280' };
-    const days = Math.floor((Date.now() - new Date(lastContact).getTime()) / 86400000);
+    const days = getDaysSince(lastContact, currentTime);
     if (days <= 7) return { label: 'Recent', color: '#22C55E' };
     if (days <= 30) return { label: 'This month', color: '#F59E0B' };
     return { label: 'Overdue', color: '#EF4444' };
@@ -80,9 +91,9 @@ export function Friends() {
 
   const stats = [
     { label: 'Close Friends', value: friends.length },
-    { label: 'Recent Contact', value: friends.filter(f => f.last_contact && (Date.now() - new Date(f.last_contact).getTime()) < 7 * 86400000).length },
+    { label: 'Recent Contact', value: friends.filter(f => getDaysSince(f.last_contact, currentTime) < 7).length },
     { label: 'Hangouts This Month', value: 4 },
-    { label: 'Need to Catch Up', value: friends.filter(f => f.last_contact && (Date.now() - new Date(f.last_contact).getTime()) > 14 * 86400000).length },
+    { label: 'Need to Catch Up', value: friends.filter(f => getDaysSince(f.last_contact, currentTime) > 14).length },
   ];
 
   const addFriend = () => {
@@ -133,13 +144,21 @@ export function Friends() {
                     <CardContent className="p-4">
                       <div className="flex items-center gap-4">
                         <div className="w-14 h-14 rounded-full bg-gradient-to-br from-orange-500/20 to-amber-500/20 flex items-center justify-center text-xl font-bold text-orange-500">
-                          {friend.name.split(' ').map(n => n[0]).join('')}
+                          {friend.name.split(' ').map((n: string) => n[0]).join('')}
                         </div>
                         <div className="flex-1">
-                          <h4 className="font-semibold">{friend.name}</h4>
+                          <h4 className={cn(
+                            "font-semibold",
+                            theme === 'light' ? "text-slate-900" : "text-white"
+                          )}>
+                            {friend.name}
+                          </h4>
                           <div className="flex items-center gap-3 mt-1">
                             {friend.how_met && (
-                              <span className="text-sm text-muted-foreground">
+                              <span className={cn(
+                                "text-sm",
+                                theme === 'light' ? "text-slate-500" : "text-white/60"
+                              )}>
                                 Met: {friend.how_met}
                               </span>
                             )}
@@ -154,7 +173,12 @@ export function Friends() {
                             </Badge>
                           </div>
                           {friend.notes && (
-                            <p className="text-sm text-muted-foreground mt-1">{friend.notes}</p>
+                            <p className={cn(
+                              "text-sm mt-1",
+                              theme === 'light' ? "text-slate-500" : "text-white/60"
+                            )}>
+                              {friend.notes}
+                            </p>
                           )}
                         </div>
                         <div className="flex gap-2">
@@ -181,7 +205,11 @@ export function Friends() {
         <TabsContent value="plan" className="mt-6">
           <Card className="mb-6">
             <CardHeader>
-              <CardTitle>Quick Plan</CardTitle>
+              <CardTitle className={cn(
+                theme === 'light' ? "text-slate-900" : "text-white"
+              )}>
+                Quick Plan
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -192,8 +220,18 @@ export function Friends() {
                     className="h-auto py-4 flex flex-col items-center"
                   >
                     <span className="text-2xl mb-1">{idea.emoji}</span>
-                    <span className="font-medium">{idea.activity}</span>
-                    <span className="text-xs text-muted-foreground">{idea.duration}</span>
+                    <span className={cn(
+                      "font-medium",
+                      theme === 'light' ? "text-slate-900" : "text-white"
+                    )}>
+                      {idea.activity}
+                    </span>
+                    <span className={cn(
+                      "text-xs",
+                      theme === 'light' ? "text-slate-500" : "text-white/60"
+                    )}>
+                      {idea.duration}
+                    </span>
                   </Button>
                 ))}
               </div>
@@ -202,19 +240,31 @@ export function Friends() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Suggested Catch-ups</CardTitle>
+              <CardTitle className={cn(
+                theme === 'light' ? "text-slate-900" : "text-white"
+              )}>
+                Suggested Catch-ups
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               {friends
-                .filter(f => f.last_contact && (Date.now() - new Date(f.last_contact).getTime()) > 14 * 86400000)
-                .map((friend) => (
+                .filter(f => getDaysSince(f.last_contact, currentTime) > 14)
+                .map((friend: any) => (
                   <div key={friend.id} className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
                     <div className="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center text-sm font-bold text-orange-500">
-                      {friend.name.split(' ').map(n => n[0]).join('')}
+                      {friend.name.split(' ').map((n: string) => n[0]).join('')}
                     </div>
                     <div className="flex-1">
-                      <p className="font-medium">{friend.name}</p>
-                      <p className="text-sm text-muted-foreground">
+                      <p className={cn(
+                        "font-medium",
+                        theme === 'light' ? "text-slate-900" : "text-white"
+                      )}>
+                        {friend.name}
+                      </p>
+                      <p className={cn(
+                        "text-sm",
+                        theme === 'light' ? "text-slate-500" : "text-white/60"
+                      )}>
                         Last seen {formatDistanceToNow(new Date(friend.last_contact!), { addSuffix: true })}
                       </p>
                     </div>
@@ -240,8 +290,16 @@ export function Friends() {
                   <div className="flex items-center gap-4">
                     <span className="text-2xl">{hangout.emoji}</span>
                     <div className="flex-1">
-                      <h4 className="font-medium">{hangout.activity}</h4>
-                      <p className="text-sm text-muted-foreground">
+                      <h4 className={cn(
+                        "font-medium",
+                        theme === 'light' ? "text-slate-900" : "text-white"
+                      )}>
+                        {hangout.activity}
+                      </h4>
+                      <p className={cn(
+                        "text-sm",
+                        theme === 'light' ? "text-slate-500" : "text-white/60"
+                      )}>
                         with {hangout.friend} · {hangout.date}
                       </p>
                     </div>

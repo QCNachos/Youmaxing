@@ -9,6 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAppStore } from '@/lib/store';
+import { cn } from '@/lib/utils';
 import { 
   Trophy,
   MapPin,
@@ -61,6 +63,7 @@ const upcomingEvents = [
 ];
 
 export function Sports() {
+  const { theme } = useAppStore();
   const [activities, setActivities] = useState<SportsActivity[]>(mockActivities);
   const [isAddingActivity, setIsAddingActivity] = useState(false);
   const [newActivity, setNewActivity] = useState({
@@ -125,14 +128,25 @@ export function Sports() {
                         {popularSports.find((s) => s.name === activity.sport)?.emoji || '🏆'}
                       </div>
                       <div className="flex-1">
-                        <h4 className="font-medium">{activity.sport}</h4>
+                        <h4 className={cn(
+                          "font-medium",
+                          theme === 'light' ? "text-slate-900" : "text-white"
+                        )}>
+                          {activity.sport}
+                        </h4>
                         <div className="flex items-center gap-3 mt-1 flex-wrap">
-                          <span className="text-sm text-muted-foreground flex items-center gap-1">
+                          <span className={cn(
+                            "text-sm flex items-center gap-1",
+                            theme === 'light' ? "text-slate-500" : "text-white/60"
+                          )}>
                             <Timer className="h-3 w-3" />
                             {activity.duration_minutes} min
                           </span>
                           {activity.location && (
-                            <span className="text-sm text-muted-foreground flex items-center gap-1">
+                            <span className={cn(
+                              "text-sm flex items-center gap-1",
+                              theme === 'light' ? "text-slate-500" : "text-white/60"
+                            )}>
                               <MapPin className="h-3 w-3" />
                               {activity.location}
                             </span>
@@ -145,7 +159,10 @@ export function Sports() {
                           )}
                         </div>
                       </div>
-                      <span className="text-sm text-muted-foreground">
+                      <span className={cn(
+                        "text-sm",
+                        theme === 'light' ? "text-slate-500" : "text-white/60"
+                      )}>
                         {format(new Date(activity.activity_date), 'MMM d')}
                       </span>
                     </div>
@@ -166,10 +183,23 @@ export function Sports() {
                       <Calendar className="h-6 w-6 text-violet-500" />
                     </div>
                     <div className="flex-1">
-                      <h4 className="font-medium">{event.name}</h4>
+                      <h4 className={cn(
+                        "font-medium",
+                        theme === 'light' ? "text-slate-900" : "text-white"
+                      )}>
+                        {event.name}
+                      </h4>
                       <div className="flex items-center gap-3 mt-1">
-                        <span className="text-sm text-muted-foreground">{event.date}</span>
-                        <span className="text-sm text-muted-foreground flex items-center gap-1">
+                        <span className={cn(
+                          "text-sm",
+                          theme === 'light' ? "text-slate-500" : "text-white/60"
+                        )}>
+                          {event.date}
+                        </span>
+                        <span className={cn(
+                          "text-sm flex items-center gap-1",
+                          theme === 'light' ? "text-slate-500" : "text-white/60"
+                        )}>
                           <MapPin className="h-3 w-3" />
                           {event.location}
                         </span>
@@ -187,14 +217,23 @@ export function Sports() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle>Sports Breakdown</CardTitle>
+                <CardTitle className={cn(
+                  theme === 'light' ? "text-slate-900" : "text-white"
+                )}>
+                  Sports Breakdown
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
                   {popularSports.slice(0, 4).map((sport, i) => (
                     <div key={sport.name} className="flex items-center gap-3">
                       <span className="text-xl">{sport.emoji}</span>
-                      <span className="flex-1">{sport.name}</span>
+                      <span className={cn(
+                        "flex-1",
+                        theme === 'light' ? "text-slate-900" : "text-white"
+                      )}>
+                        {sport.name}
+                      </span>
                       <Badge variant="secondary">{[5, 3, 2, 1][i]} sessions</Badge>
                     </div>
                   ))}
@@ -204,7 +243,11 @@ export function Sports() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Achievements</CardTitle>
+                <CardTitle className={cn(
+                  theme === 'light' ? "text-slate-900" : "text-white"
+                )}>
+                  Achievements
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-3 gap-4">
@@ -215,7 +258,12 @@ export function Sports() {
                   ].map((achievement) => (
                     <div key={achievement.label} className="text-center">
                       <div className="text-3xl mb-1">{achievement.emoji}</div>
-                      <span className="text-xs text-muted-foreground">{achievement.label}</span>
+                      <span className={cn(
+                        "text-xs",
+                        theme === 'light' ? "text-slate-500" : "text-white/60"
+                      )}>
+                        {achievement.label}
+                      </span>
                     </div>
                   ))}
                 </div>

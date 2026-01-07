@@ -10,6 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useAppStore } from '@/lib/store';
+import { cn } from '@/lib/utils';
 import { 
   Dumbbell, 
   Flame, 
@@ -83,6 +85,7 @@ const typeIcons = {
 };
 
 export function Training() {
+  const { theme } = useAppStore();
   const [workouts, setWorkouts] = useState<TrainingLog[]>(mockWorkouts);
   const [isAddingWorkout, setIsAddingWorkout] = useState(false);
   const [newWorkout, setNewWorkout] = useState({
@@ -172,9 +175,17 @@ export function Training() {
                           />
                         </div>
                         <div className="flex-1">
-                          <h4 className="font-medium">{workout.title}</h4>
+                          <h4 className={cn(
+                            "font-medium",
+                            theme === 'light' ? "text-slate-900" : "text-white"
+                          )}>
+                            {workout.title}
+                          </h4>
                           <div className="flex items-center gap-3 mt-1">
-                            <span className="text-sm text-muted-foreground flex items-center gap-1">
+                            <span className={cn(
+                              "text-sm flex items-center gap-1",
+                              theme === 'light' ? "text-slate-500" : "text-white/60"
+                            )}>
                               <Timer className="h-3 w-3" />
                               {workout.duration_minutes} min
                             </span>
@@ -191,13 +202,19 @@ export function Training() {
                           </div>
                         </div>
                         <div className="text-right">
-                          <span className="text-sm text-muted-foreground">
+                          <span className={cn(
+                            "text-sm",
+                            theme === 'light' ? "text-slate-500" : "text-white/60"
+                          )}>
                             {format(new Date(workout.completed_at), 'MMM d')}
                           </span>
                         </div>
                       </div>
                       {workout.notes && (
-                        <p className="text-sm text-muted-foreground mt-3 pl-16">
+                        <p className={cn(
+                          "text-sm mt-3 pl-16",
+                          theme === 'light' ? "text-slate-500" : "text-white/60"
+                        )}>
                           {workout.notes}
                         </p>
                       )}
@@ -228,8 +245,16 @@ export function Training() {
                         />
                       </div>
                       <div className="flex-1">
-                        <h4 className="font-medium">{template.name}</h4>
-                        <p className="text-sm text-muted-foreground">
+                        <h4 className={cn(
+                          "font-medium",
+                          theme === 'light' ? "text-slate-900" : "text-white"
+                        )}>
+                          {template.name}
+                        </h4>
+                        <p className={cn(
+                          "text-sm",
+                          theme === 'light' ? "text-slate-500" : "text-white/60"
+                        )}>
                           {template.duration} min · {template.intensity} intensity
                         </p>
                       </div>
@@ -256,7 +281,10 @@ export function Training() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className={cn(
+                  "flex items-center gap-2",
+                  theme === 'light' ? "text-slate-900" : "text-white"
+                )}>
                   <Calendar className="h-5 w-5 text-violet-500" />
                   Weekly Overview
                 </CardTitle>
@@ -271,7 +299,12 @@ export function Training() {
                           className="w-8 rounded-t-md bg-gradient-to-t from-violet-600 to-pink-600 transition-all"
                           style={{ height: `${height}%`, minHeight: height > 0 ? '8px' : '0' }}
                         />
-                        <span className="text-xs text-muted-foreground">{day}</span>
+                        <span className={cn(
+                          "text-xs",
+                          theme === 'light' ? "text-slate-500" : "text-white/60"
+                        )}>
+                          {day}
+                        </span>
                       </div>
                     );
                   })}
@@ -281,22 +314,40 @@ export function Training() {
 
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className={cn(
+                  "flex items-center gap-2",
+                  theme === 'light' ? "text-slate-900" : "text-white"
+                )}>
                   <TrendingUp className="h-5 w-5 text-green-500" />
                   Personal Bests
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm">Longest Run</span>
+                  <span className={cn(
+                    "text-sm",
+                    theme === 'light' ? "text-slate-900" : "text-white"
+                  )}>
+                    Longest Run
+                  </span>
                   <Badge variant="secondary">10 km</Badge>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm">Longest Streak</span>
+                  <span className={cn(
+                    "text-sm",
+                    theme === 'light' ? "text-slate-900" : "text-white"
+                  )}>
+                    Longest Streak
+                  </span>
                   <Badge variant="secondary">14 days</Badge>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm">Most Active Week</span>
+                  <span className={cn(
+                    "text-sm",
+                    theme === 'light' ? "text-slate-900" : "text-white"
+                  )}>
+                    Most Active Week
+                  </span>
                   <Badge variant="secondary">6 workouts</Badge>
                 </div>
               </CardContent>

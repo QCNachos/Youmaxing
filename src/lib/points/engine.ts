@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { createClient } from '@/lib/supabase/client';
 import type { PointTransaction, PointTransactionType, UserPoints } from '@/types/database';
 
@@ -196,7 +197,7 @@ export async function getPointRules(): Promise<Array<{
     return [];
   }
   
-  return data || [];
+  return (data as any) || [];
 }
 
 /**

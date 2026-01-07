@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -12,7 +12,6 @@ import {
 import {
   Coins,
   TrendingUp,
-  TrendingDown,
   Gift,
   Share2,
   Star,
@@ -25,7 +24,7 @@ import {
 import type { PointTransaction, PointTransactionType } from '@/types/database';
 
 // Transaction type icons
-const transactionIcons: Record<PointTransactionType, typeof Coins> = {
+const transactionIcons: Partial<Record<PointTransactionType, typeof Coins>> = {
   daily_login: LogIn,
   rate_item: Star,
   share_list: Share2,
@@ -36,6 +35,10 @@ const transactionIcons: Record<PointTransactionType, typeof Coins> = {
   complete_watchlist: Award,
   signup_bonus: Award,
   referral: UserPlus,
+  earn: Award,
+  spend: Gift,
+  tip_received: Gift,
+  tip_sent: Gift,
 };
 
 // Mock data
@@ -121,9 +124,10 @@ interface PointsDisplayProps {
 }
 
 export function PointsDisplay({ variant = 'badge', showHistory = true }: PointsDisplayProps) {
-  const [balance, setBalance] = useState(mockBalance);
-  const [transactions, setTransactions] = useState<PointTransaction[]>(mockTransactions);
+  const [balance] = useState(mockBalance);
+  const [transactions] = useState<PointTransaction[]>(mockTransactions);
   const [isOpen, setIsOpen] = useState(false);
+  const [currentTime] = useState(() => Date.now());
   
   // Calculate stats
   const earnedToday = transactions
@@ -136,7 +140,7 @@ export function PointsDisplay({ variant = 'badge', showHistory = true }: PointsD
   
   const earnedThisWeek = transactions
     .filter(t => {
-      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const weekAgo = new Date(currentTime - 7 * 24 * 60 * 60 * 1000);
       return new Date(t.created_at) >= weekAgo && t.amount > 0;
     })
     .reduce((sum, t) => sum + t.amount, 0);

@@ -47,13 +47,8 @@ export default function SignupPage() {
         toast.error('This email is already registered. Please sign in instead.');
         router.push('/login');
       } else {
-        // Check if email confirmation is required
-        toast.success('Account created! Please check your email to verify your account.', {
-          duration: 6000,
-        });
-        toast.info('Click the verification link in your email to continue.', {
-          duration: 6000,
-        });
+        // Redirect to login with a message to verify email
+        router.push('/login?message=verify-email');
       }
     } catch {
       toast.error('Something went wrong. Please try again.');

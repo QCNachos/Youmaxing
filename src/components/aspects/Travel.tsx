@@ -10,6 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
+import { useAppStore } from '@/lib/store';
+import { cn } from '@/lib/utils';
 import { 
   Plane,
   MapPin,
@@ -63,6 +65,7 @@ const statusConfig = {
 };
 
 export function Travel() {
+  const { theme } = useAppStore();
   const [trips, setTrips] = useState<Trip[]>(mockTrips);
   const [isAddingTrip, setIsAddingTrip] = useState(false);
   const [newTrip, setNewTrip] = useState({
@@ -120,7 +123,7 @@ export function Travel() {
           ) : (
             <div className="space-y-4">
               {trips.map((trip) => {
-                const config = statusConfig[trip.status];
+                const config = statusConfig[trip.status as keyof typeof statusConfig];
                 const StatusIcon = config.icon;
                 return (
                   <Card key={trip.id} className="hover:border-primary/50 transition-colors overflow-hidden">
@@ -137,7 +140,12 @@ export function Travel() {
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <h4 className="font-semibold text-lg">{trip.destination}</h4>
+                            <h4 className={cn(
+                              "font-semibold text-lg",
+                              theme === 'light' ? "text-slate-900" : "text-white"
+                            )}>
+                              {trip.destination}
+                            </h4>
                             <Badge
                               variant="secondary"
                               style={{ backgroundColor: `${config.color}20`, color: config.color }}
@@ -146,7 +154,10 @@ export function Travel() {
                               {config.label}
                             </Badge>
                           </div>
-                          <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                          <div className={cn(
+                            "flex items-center gap-4 mt-2 text-sm",
+                            theme === 'light' ? "text-slate-500" : "text-white/60"
+                          )}>
                             {trip.start_date && (
                               <span className="flex items-center gap-1">
                                 <Calendar className="h-3 w-3" />
@@ -161,7 +172,12 @@ export function Travel() {
                             )}
                           </div>
                           {trip.notes && (
-                            <p className="text-sm text-muted-foreground mt-2">{trip.notes}</p>
+                            <p className={cn(
+                              "text-sm mt-2",
+                              theme === 'light' ? "text-slate-500" : "text-white/60"
+                            )}>
+                              {trip.notes}
+                            </p>
                           )}
                         </div>
                       </div>
@@ -181,8 +197,18 @@ export function Travel() {
                   <div className="flex items-center gap-4">
                     <span className="text-3xl">{item.emoji}</span>
                     <div className="flex-1">
-                      <h4 className="font-medium">{item.destination}</h4>
-                      <p className="text-sm text-muted-foreground">{item.reason}</p>
+                      <h4 className={cn(
+                        "font-medium",
+                        theme === 'light' ? "text-slate-900" : "text-white"
+                      )}>
+                        {item.destination}
+                      </h4>
+                      <p className={cn(
+                        "text-sm",
+                        theme === 'light' ? "text-slate-500" : "text-white/60"
+                      )}>
+                        {item.reason}
+                      </p>
                     </div>
                     <Button
                       size="sm"
@@ -199,8 +225,15 @@ export function Travel() {
             ))}
             <Card className="border-dashed hover:border-primary/50 transition-colors cursor-pointer" onClick={() => setIsAddingTrip(true)}>
               <CardContent className="p-4 flex items-center justify-center h-full min-h-[80px]">
-                <Plus className="h-5 w-5 text-muted-foreground mr-2" />
-                <span className="text-muted-foreground">Add to Bucket List</span>
+                <Plus className={cn(
+                  "h-5 w-5 mr-2",
+                  theme === 'light' ? "text-slate-400" : "text-white/40"
+                )} />
+                <span className={cn(
+                  theme === 'light' ? "text-slate-500" : "text-white/60"
+                )}>
+                  Add to Bucket List
+                </span>
               </CardContent>
             </Card>
           </div>
@@ -217,8 +250,18 @@ export function Travel() {
               <Card key={i} className="hover:border-primary/50 transition-colors cursor-pointer">
                 <CardContent className="p-6 text-center">
                   <span className="text-4xl mb-2 block">{memory.emoji}</span>
-                  <h4 className="font-medium">{memory.destination}</h4>
-                  <p className="text-sm text-muted-foreground">{memory.year}</p>
+                  <h4 className={cn(
+                    "font-medium",
+                    theme === 'light' ? "text-slate-900" : "text-white"
+                  )}>
+                    {memory.destination}
+                  </h4>
+                  <p className={cn(
+                    "text-sm",
+                    theme === 'light' ? "text-slate-500" : "text-white/60"
+                  )}>
+                    {memory.year}
+                  </p>
                 </CardContent>
               </Card>
             ))}

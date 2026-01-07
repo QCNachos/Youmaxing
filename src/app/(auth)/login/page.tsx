@@ -1,23 +1,33 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import { Sparkles, Mail, Lock, ArrowRight } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Sparkles, Mail, Lock, ArrowRight, MailCheck } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
 import { isDemoMode } from '@/lib/env';
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showVerifyMessage, setShowVerifyMessage] = useState(false);
+
+  useEffect(() => {
+    // Check for verify-email message from signup redirect
+    if (searchParams.get('message') === 'verify-email') {
+      setShowVerifyMessage(true);
+    }
+  }, [searchParams]);
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,9 +52,9 @@ export default function LoginPage() {
       } else if (data.user) {
         // Check if user has completed onboarding
         const { data: preferences } = await supabase
-          .from('user_preferences')
+          .from('user_preferences' as any)
           .select('onboarding_completed')
-          .single<{ onboarding_completed: boolean }>();
+          .single() as any;
 
         if (preferences && !preferences.onboarding_completed) {
           router.push('/onboarding');
@@ -103,6 +113,16 @@ export default function LoginPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
+            {/* Verify Email Message */}
+            {showVerifyMessage && (
+              <Alert className="border-green-500/50 bg-green-500/10">
+                <MailCheck className="h-4 w-4 text-green-500" />
+                <AlertDescription className="text-green-500">
+                  <strong>Account created!</strong> Please check your email and click the verification link to activate your account.
+                </AlertDescription>
+              </Alert>
+            )}
+
             {/* OAuth Buttons */}
             <div className="grid grid-cols-2 gap-3">
               <Button
@@ -218,6 +238,18 @@ export default function LoginPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen mesh-gradient flex items-center justify-center">
+        <div className="animate-pulse text-muted-foreground">Loading...</div>
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }
 

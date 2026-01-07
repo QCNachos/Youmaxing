@@ -23,9 +23,9 @@ export async function GET(request: Request) {
 
     // Check if user has completed onboarding
     const { data: preferences } = await supabase
-      .from('user_preferences')
+      .from('user_preferences' as any)
       .select('onboarding_completed')
-      .single<{ onboarding_completed: boolean }>();
+      .single() as any;
 
     // Redirect to onboarding if not completed
     if (preferences && !preferences.onboarding_completed) {
