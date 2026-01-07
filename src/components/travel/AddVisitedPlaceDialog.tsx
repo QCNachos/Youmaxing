@@ -7,9 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAppStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
-import { Plus, MapPin, Star } from 'lucide-react';
+import { Plus, MapPin, Star, Loader2 } from 'lucide-react';
 import { useVisitedPlaces } from '@/hooks/useTravel';
 import { toast } from 'sonner';
+import { geocodeLocation } from '@/lib/geocoding';
 
 interface AddVisitedPlaceDialogProps {
   open: boolean;
@@ -56,19 +57,29 @@ export function AddVisitedPlaceDialog({ open, onOpenChange, onSuccess }: AddVisi
 
     try {
       setSubmitting(true);
+      
+      // Geocode the location using Nominatim API
+      toast.loading('Finding location on map...');
+      const coords = await geocodeLocation(formData.country, formData.city);
+      
+      if (coords.lat === 0 && coords.lng === 0) {
+        toast.warning('Location found, but coordinates may be approximate');
+      }
+      
       await addPlace({
         country: formData.country,
         city: formData.city || null,
         year: formData.year,
         emoji: formData.emoji || '🌍',
-        coordinates_x: formData.coordinates_x,
-        coordinates_y: formData.coordinates_y,
+        coordinates_x: coords.lng, // Store actual longitude
+        coordinates_y: coords.lat,  // Store actual latitude
         notes: formData.notes || null,
         rating: formData.rating || null,
         photos: null,
         visited_at: null,
       });
 
+      toast.dismiss();
       toast.success('Place added successfully!');
       onSuccess?.();
       onOpenChange(false);
@@ -87,6 +98,7 @@ export function AddVisitedPlaceDialog({ open, onOpenChange, onSuccess }: AddVisi
       setMapClick(null);
     } catch (error) {
       console.error('Error adding place:', error);
+      toast.dismiss();
       toast.error('Failed to add place');
     } finally {
       setSubmitting(false);
@@ -191,54 +203,16 @@ export function AddVisitedPlaceDialog({ open, onOpenChange, onSuccess }: AddVisi
             </div>
           </div>
 
-          {/* Map Coordinate Selector */}
+          {/* Note about geocoding */}
           <div className="space-y-2">
             <Label className="flex items-center gap-2">
               <MapPin className="h-4 w-4" />
-              Click on the map to select location
+              Auto-Geocoding
             </Label>
             <p className={cn("text-xs", textSecondary)}>
-              Coordinates: X: {formData.coordinates_x.toFixed(1)}%, Y: {formData.coordinates_y.toFixed(1)}%
+              📍 Coordinates are automatically found using OpenStreetMap's geocoding service.
+              Just enter the country and city - we'll find it on the map!
             </p>
-            
-            <div
-              onClick={handleMapClick}
-              className="relative w-full aspect-[2/1] rounded-lg overflow-hidden bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-slate-800 dark:to-slate-900 cursor-crosshair border-2 border-dashed border-gray-300 dark:border-gray-700"
-            >
-              {/* Simple world map background */}
-              <svg 
-                viewBox="0 0 1000 500" 
-                className="w-full h-full pointer-events-none"
-                style={{ opacity: theme === 'light' ? 0.3 : 0.2 }}
-              >
-                {/* Continents */}
-                <path d="M 150,150 L 200,120 L 280,130 L 320,100 L 380,110 L 420,140 L 450,160 L 440,200 L 380,220 L 320,210 L 280,180 L 220,190 L 180,170 Z" fill={theme === 'light' ? '#94a3b8' : '#475569'} opacity="0.5" />
-                <path d="M 100,100 L 180,80 L 240,90 L 260,130 L 240,180 L 200,200 L 150,190 L 120,160 Z" fill={theme === 'light' ? '#94a3b8' : '#475569'} opacity="0.5" />
-                <path d="M 220,240 L 250,220 L 280,240 L 290,300 L 270,360 L 240,370 L 220,340 L 210,280 Z" fill={theme === 'light' ? '#94a3b8' : '#475569'} opacity="0.5" />
-                <path d="M 450,180 L 500,170 L 540,200 L 550,250 L 530,300 L 490,320 L 460,300 L 450,240 Z" fill={theme === 'light' ? '#94a3b8' : '#475569'} opacity="0.5" />
-                <path d="M 600,80 L 750,70 L 850,90 L 900,120 L 920,180 L 880,220 L 800,240 L 720,230 L 650,200 L 620,150 Z" fill={theme === 'light' ? '#94a3b8' : '#475569'} opacity="0.5" />
-                <path d="M 750,320 L 850,310 L 900,340 L 890,380 L 840,400 L 770,390 L 740,360 Z" fill={theme === 'light' ? '#94a3b8' : '#475569'} opacity="0.5" />
-              </svg>
-
-              {/* User's marker */}
-              {mapClick && (
-                <div
-                  className="absolute"
-                  style={{
-                    left: `${mapClick.x}%`,
-                    top: `${mapClick.y}%`,
-                    transform: 'translate(-50%, -50%)',
-                  }}
-                >
-                  <div className="relative">
-                    <div className="absolute inset-0 rounded-full animate-ping bg-cyan-500 w-6 h-6 -mt-3 -ml-3 opacity-75" />
-                    <div className="relative w-6 h-6 rounded-full bg-cyan-500 flex items-center justify-center shadow-lg -mt-3 -ml-3">
-                      <MapPin className="h-4 w-4 text-white" />
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
 
           {/* Notes */}
@@ -257,8 +231,17 @@ export function AddVisitedPlaceDialog({ open, onOpenChange, onSuccess }: AddVisi
             className="w-full bg-gradient-to-r from-cyan-600 to-blue-600"
             disabled={submitting}
           >
-            <Plus className="h-4 w-4 mr-2" />
-            {submitting ? 'Adding...' : 'Add Visited Place'}
+            {submitting ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Finding location...
+              </>
+            ) : (
+              <>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Visited Place
+              </>
+            )}
           </Button>
         </form>
       </DialogContent>

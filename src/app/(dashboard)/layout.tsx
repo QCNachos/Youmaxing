@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { CalendarSidebar } from '@/components/CalendarSidebar';
 import { AvatarWithRing } from '@/components/3d/AvatarWithRing';
@@ -14,6 +14,7 @@ import { AppStore } from '@/components/AppStore';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { ExpandedObjectivesDialogEnhanced } from '@/components/ExpandedObjectivesDialogEnhanced';
 import { Button } from '@/components/ui/button';
+import { useCarouselApps } from '@/hooks/useCarouselApps';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -688,6 +689,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [earnOpen, setEarnOpen] = useState(false);
   const [premiumOpen, setPremiumOpen] = useState(false);
   const [appStoreOpen, setAppStoreOpen] = useState(false);
+
+  // Use centralized hook for sidebar aspects
+  const { getFilteredAspects, loading: prefsLoading } = useCarouselApps();
+  const sidebarAspects = prefsLoading 
+    ? aspects.filter(a => a.id !== 'settings')
+    : getFilteredAspects();
 
   // Navigate to mini-app page
   const goToMiniApp = (aspectId: string) => {

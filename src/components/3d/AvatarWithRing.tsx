@@ -9,7 +9,7 @@ import { useAppStore } from '@/lib/store';
 import { aspects } from '@/lib/aspects';
 import { ChevronLeft, ChevronRight, User, Sparkles, ExternalLink, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { createClient } from '@/lib/supabase/client';
+import { useCarouselApps } from '@/hooks/useCarouselApps';
 
 // Filter out settings - it's a menu now, not an aspect
 const aspectsWithoutSettings = aspects.filter(a => a.id !== 'settings');
@@ -171,50 +171,10 @@ export function AvatarWithRing({ compact = false }: AvatarWithRingProps) {
   const router = useRouter();
   const { currentAspect, nextAspect, prevAspect, setCurrentAspect, theme } = useAppStore();
   const [use3DAvatar, setUse3DAvatar] = useState(false); // Toggle for 3D character
-  const [carouselAspects, setCarouselAspects] = useState<typeof aspectsWithoutSettings>(aspectsWithoutSettings);
-  const [loading, setLoading] = useState(true);
   
-  // Load user's carousel preferences
-  useEffect(() => {
-    const loadCarouselPreferences = async () => {
-      try {
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (!user) {
-          setLoading(false);
-          return;
-        }
-
-        const { data: preferences } = await supabase
-          .from('user_preferences')
-          .select('carousel_apps, installed_apps')
-          .eq('user_id', user.id)
-          .single();
-
-        if (preferences) {
-          // Use carousel_apps if set, otherwise fall back to installed_apps or all apps
-          const appsToShow = preferences.carousel_apps || preferences.installed_apps || aspectsWithoutSettings.map(a => a.id);
-          
-          // Filter aspects to only show those in user's carousel
-          const filteredAspects = aspectsWithoutSettings.filter(aspect => 
-            appsToShow.includes(aspect.id)
-          );
-          
-          // If user has valid carousel apps, use them. Otherwise use all.
-          if (filteredAspects.length >= 5) {
-            setCarouselAspects(filteredAspects);
-          }
-        }
-      } catch (error) {
-        console.error('Error loading carousel preferences:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadCarouselPreferences();
-  }, []);
+  // Use centralized hook for carousel preferences
+  const { getFilteredAspects, loading } = useCarouselApps();
+  const carouselAspects = loading ? aspectsWithoutSettings : getFilteredAspects();
 
   const currentAspectConfig = carouselAspects.find((a) => a.id === currentAspect) || carouselAspects[0];
   const currentIndex = carouselAspects.findIndex((a) => a.id === currentAspect);
@@ -225,11 +185,19 @@ export function AvatarWithRing({ compact = false }: AvatarWithRingProps) {
     router.push(`/${currentAspect}`);
   };
 
-  // Calculate positions for 7 visible icons in an elongated ellipse
+  // Calculate positions for visible icons in an elongated ellipse
+  // Show up to 7 icons, but never more than available apps to avoid duplicates
   const getVisibleAspects = () => {
     const total = carouselAspects.length;
     const visible: { aspect: (typeof carouselAspects)[number]; position: number }[] = [];
-    for (let i = -3; i <= 3; i++) {
+    
+    // Determine how many icons to show on each side
+    // For 5 apps: show 2 on each side (total 5: -2, -1, 0, 1, 2)
+    // For 6 apps: show 2 on each side (total 5: -2, -1, 0, 1, 2) to avoid too much crowding
+    // For 7+ apps: show 3 on each side (total 7: -3, -2, -1, 0, 1, 2, 3)
+    const sideCount = total >= 7 ? 3 : Math.min(Math.floor((total - 1) / 2), 2);
+    
+    for (let i = -sideCount; i <= sideCount; i++) {
       const index = (currentIndex + i + total) % total;
       visible.push({
         aspect: carouselAspects[index],

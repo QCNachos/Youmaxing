@@ -26,8 +26,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { aspects } from '@/lib/aspects';
-import { createClient } from '@/lib/supabase/client';
-import { toast } from 'sonner';
+import { useCarouselApps } from '@/hooks/useCarouselApps';
 import { cn } from '@/lib/utils';
 
 // Extended icon mapping including main aspect icons
@@ -144,12 +143,21 @@ interface AppsDialogProps {
 }
 
 export function AppStore({ open, onOpenChange, onAppSelect }: AppsDialogProps) {
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [carouselApps, setCarouselApps] = useState<string[]>([]);
-  const [wishlistApps, setWishlistApps] = useState<string[]>([]);
+  // Use centralized hook for preferences
+  const {
+    carouselApps: savedCarouselApps,
+    wishlistApps: savedWishlistApps,
+    loading,
+    savePreferences: hookSavePreferences,
+    toggleCarouselApp: hookToggleCarousel,
+    toggleWishlist: hookToggleWishlist,
+  } = useCarouselApps();
+
+  // Local state for unsaved changes in dialog
+  const [localCarouselApps, setLocalCarouselApps] = useState<string[]>([]);
+  const [localWishlistApps, setLocalWishlistApps] = useState<string[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [userId, setUserId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const categories = [
     { value: 'all', label: 'All Apps' },
@@ -168,106 +176,50 @@ export function AppStore({ open, onOpenChange, onAppSelect }: AppsDialogProps) {
       ? allApps
       : allApps.filter((app) => app.category === selectedCategory);
 
-  // Load user preferences
+  // Sync local state when dialog opens
   useEffect(() => {
-    if (open) {
-      loadUserPreferences();
+    if (open && !loading) {
+      setLocalCarouselApps(savedCarouselApps);
+      setLocalWishlistApps(savedWishlistApps);
     }
-  }, [open]);
+  }, [open, loading, savedCarouselApps, savedWishlistApps]);
 
-  const loadUserPreferences = async () => {
-    try {
-      const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-
-      setUserId(user.id);
-
-      const { data: preferences, error } = await supabase
-        .from('user_preferences')
-        .select('carousel_apps, wishlist_apps, installed_apps')
-        .eq('user_id', user.id)
-        .single();
-
-      if (error) {
-        console.error('Error loading preferences:', error);
-        // Set defaults
-        setCarouselApps(activeApps.slice(0, 5).map((a) => a.slug));
-        setWishlistApps([]);
-      } else {
-        setCarouselApps(
-          preferences?.carousel_apps ||
-            preferences?.installed_apps ||
-            activeApps.slice(0, 5).map((a) => a.slug)
-        );
-        setWishlistApps(preferences?.wishlist_apps || []);
-      }
-    } catch (error) {
-      console.error('Error in loadUserPreferences:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const savePreferences = async () => {
-    if (!userId) return;
-
+  const handleSavePreferences = async () => {
     setSaving(true);
-    try {
-      const supabase = createClient();
-      const { error } = await supabase
-        .from('user_preferences')
-        .update({
-          carousel_apps: carouselApps,
-          wishlist_apps: wishlistApps,
-        })
-        .eq('user_id', userId);
+    const success = await hookSavePreferences(localCarouselApps, localWishlistApps);
+    setSaving(false);
 
-      if (error) throw error;
-
-      toast.success('Preferences saved successfully!');
-    } catch (error) {
-      console.error('Error saving preferences:', error);
-      toast.error('Failed to save preferences');
-    } finally {
-      setSaving(false);
+    if (success) {
+      // Close dialog after short delay
+      setTimeout(() => {
+        onOpenChange(false);
+      }, 500);
     }
   };
 
   const toggleCarouselApp = (appSlug: string) => {
-    if (carouselApps.includes(appSlug)) {
-      // Remove - but enforce minimum of 5
-      if (carouselApps.length <= 5) {
-        toast.error('You must have at least 5 apps in your carousel');
-        return;
-      }
-      setCarouselApps(carouselApps.filter((s) => s !== appSlug));
-    } else {
-      // Add - but enforce maximum of 10
-      if (carouselApps.length >= 10) {
-        toast.error('You can have maximum 10 apps in your carousel');
-        return;
-      }
-      setCarouselApps([...carouselApps, appSlug]);
+    const newApps = localCarouselApps.includes(appSlug)
+      ? localCarouselApps.filter((s) => s !== appSlug)
+      : [...localCarouselApps, appSlug];
+
+    // Enforce constraints with toast notifications from hook
+    if (newApps.length < 5 || newApps.length > 10) {
+      hookToggleCarousel(appSlug); // This will show the error toast
+      return;
     }
+
+    setLocalCarouselApps(newApps);
   };
 
   const toggleWishlist = (appSlug: string) => {
-    if (wishlistApps.includes(appSlug)) {
-      setWishlistApps(wishlistApps.filter((s) => s !== appSlug));
-      toast.success('Removed from wishlist');
-    } else {
-      setWishlistApps([...wishlistApps, appSlug]);
-      toast.success('Added to wishlist! We\'ll notify you when it\'s ready.');
-    }
-  };
+    const newWishlist = localWishlistApps.includes(appSlug)
+      ? localWishlistApps.filter((s) => s !== appSlug)
+      : [...localWishlistApps, appSlug];
 
+    setLocalWishlistApps(newWishlist);
+    hookToggleWishlist(appSlug); // This will show the toast notification
+  };
+  
   const handleOpenApp = (appSlug: string) => {
     if (allApps.find((a) => a.slug === appSlug && !a.isActive)) {
       toast.error('This app is coming soon!');
@@ -276,38 +228,38 @@ export function AppStore({ open, onOpenChange, onAppSelect }: AppsDialogProps) {
     onOpenChange(false);
     onAppSelect?.(appSlug);
   };
-
+  
   const renderAppCard = (app: AppItem) => {
     const Icon = app.icon;
-    const isInCarousel = carouselApps.includes(app.slug);
-    const isWishlisted = wishlistApps.includes(app.slug);
-
+    const isInCarousel = localCarouselApps.includes(app.slug);
+    const isWishlisted = localWishlistApps.includes(app.slug);
+    
     return (
-      <Card
-        key={app.id}
+      <Card 
+        key={app.id} 
         className={cn(
           'relative overflow-hidden transition-all',
           !app.isActive ? 'opacity-80' : 'hover:border-primary/50'
         )}
       >
         {!app.isActive && (
-          <Badge
+          <Badge 
             className="absolute top-2 right-2 bg-amber-500/20 text-amber-400 border-amber-500/30"
             variant="secondary"
           >
             Coming Soon
           </Badge>
         )}
-
+        
         <CardContent className="p-4">
           <div className="flex items-start gap-4">
             {/* App Icon */}
-            <div
+            <div 
               className={`w-14 h-14 rounded-xl flex items-center justify-center bg-gradient-to-br ${app.gradient} flex-shrink-0`}
             >
               <Icon className="h-7 w-7 text-white" />
             </div>
-
+            
             {/* App Info */}
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-base mb-1">{app.name}</h3>
@@ -315,7 +267,7 @@ export function AppStore({ open, onOpenChange, onAppSelect }: AppsDialogProps) {
                 {app.description}
               </p>
               <div className="flex items-center gap-2 mt-3">
-                <Badge variant="outline" className="text-xs">
+                  <Badge variant="outline" className="text-xs">
                   {app.category}
                 </Badge>
                 {isInCarousel && (
@@ -330,21 +282,21 @@ export function AppStore({ open, onOpenChange, onAppSelect }: AppsDialogProps) {
               </div>
             </div>
           </div>
-
-          {/* Actions */}
+              
+              {/* Actions */}
           <div className="mt-4 pt-4 border-t flex items-center justify-between gap-2">
             {app.isActive ? (
-              <>
-                <Button
+                  <>
+                    <Button 
                   variant="outline"
-                  size="sm"
-                  onClick={() => handleOpenApp(app.slug)}
+                      size="sm" 
+                      onClick={() => handleOpenApp(app.slug)}
                   className="flex-1"
-                >
+                    >
                   Open App
-                </Button>
+                    </Button>
                 <div className="flex items-center gap-2">
-                  <Button
+                    <Button 
                     variant="ghost"
                     size="icon"
                     onClick={() => toggleCarouselApp(app.slug)}
@@ -356,9 +308,9 @@ export function AppStore({ open, onOpenChange, onAppSelect }: AppsDialogProps) {
                     className="h-9 w-9"
                   >
                     {isInCarousel ? (
-                      <EyeOff className="h-4 w-4" />
+                      <Eye className="h-4 w-4 text-primary" />
                     ) : (
-                      <Eye className="h-4 w-4" />
+                      <EyeOff className="h-4 w-4" />
                     )}
                   </Button>
                 </div>
@@ -397,7 +349,7 @@ export function AppStore({ open, onOpenChange, onAppSelect }: AppsDialogProps) {
       </Card>
     );
   };
-
+  
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl h-[85vh] flex flex-col p-0">
@@ -407,18 +359,18 @@ export function AppStore({ open, onOpenChange, onAppSelect }: AppsDialogProps) {
               <DialogTitle className="text-2xl flex items-center gap-2">
                 <Sparkles className="h-6 w-6 text-primary" />
                 Apps
-              </DialogTitle>
+          </DialogTitle>
               <DialogDescription className="mt-1">
                 Manage which apps appear in your home carousel (min 5, max 10)
-              </DialogDescription>
+          </DialogDescription>
             </div>
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="text-sm">
-                {carouselApps.length}/10 in carousel
+                {localCarouselApps.length}/10 in carousel
               </Badge>
               <Button
                 size="sm"
-                onClick={savePreferences}
+                onClick={handleSavePreferences}
                 disabled={saving || loading}
               >
                 {saving ? (
@@ -436,10 +388,10 @@ export function AppStore({ open, onOpenChange, onAppSelect }: AppsDialogProps) {
             </div>
           </div>
         </DialogHeader>
-
+        
         {/* Category Tabs */}
-        <Tabs
-          value={selectedCategory}
+        <Tabs 
+          value={selectedCategory} 
           onValueChange={setSelectedCategory}
           className="flex-1 flex flex-col min-h-0 px-6"
         >
@@ -450,14 +402,14 @@ export function AppStore({ open, onOpenChange, onAppSelect }: AppsDialogProps) {
               </TabsTrigger>
             ))}
           </TabsList>
-
-          <ScrollArea className="flex-1 mt-4 pb-4">
+          
+          <ScrollArea className="flex-1 mt-4 pb-4 h-[calc(85vh-200px)]">
             {loading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-              </div>
-            ) : (
-              <div className="space-y-6 pr-4">
+                </div>
+              ) : (
+              <div className="space-y-6 pr-4 pb-6">
                 {/* Active Apps Section */}
                 {filteredApps.filter((a) => a.isActive).length > 0 && (
                   <div>
@@ -491,12 +443,12 @@ export function AppStore({ open, onOpenChange, onAppSelect }: AppsDialogProps) {
                   <div className="text-center py-12 text-muted-foreground">
                     No apps in this category.
                   </div>
-                )}
-              </div>
+              )}
+            </div>
             )}
           </ScrollArea>
         </Tabs>
-
+        
         {/* Footer */}
         <div className="px-6 py-4 border-t bg-muted/30">
           <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -505,10 +457,10 @@ export function AppStore({ open, onOpenChange, onAppSelect }: AppsDialogProps) {
               <span className="text-amber-500">
                 {comingSoonApps.length} coming soon
               </span>
-              {wishlistApps.length > 0 && (
+              {localWishlistApps.length > 0 && (
                 <span>
                   <Bell className="h-3 w-3 inline mr-1" />
-                  {wishlistApps.length} wishlisted
+                  {localWishlistApps.length} wishlisted
                 </span>
               )}
             </div>

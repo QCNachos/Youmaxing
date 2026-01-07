@@ -43,9 +43,26 @@ import { useTrips, useBucketList, useVisitedPlaces } from '@/hooks/useTravel';
 import { FolderBrowser, businessFolders } from '@/components/FolderBrowser';
 import { Films } from '@/components/aspects/Films';
 import { Food } from '@/components/aspects/Food';
-import { WorldMap } from '@/components/WorldMap';
+import dynamic from 'next/dynamic';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
+// Load map dynamically (client-side only) to avoid SSR issues
+const InteractiveWorldMap = dynamic(
+  () => import('@/components/InteractiveWorldMap').then(mod => ({ default: mod.InteractiveWorldMap })),
+  { 
+    ssr: false,
+    loading: () => (
+      <div className="w-full aspect-[2/1] rounded-lg bg-slate-200 dark:bg-slate-800 animate-pulse flex items-center justify-center">
+        <p className="text-sm text-slate-500 dark:text-white/60">Loading map...</p>
+      </div>
+    )
+  }
+);
+import { AddTripDialog } from '@/components/travel/AddTripDialog';
+import { AddBucketListDialog } from '@/components/travel/AddBucketListDialog';
+import { AddVisitedPlaceDialog } from '@/components/travel/AddVisitedPlaceDialog';
 import type { AspectType } from '@/types/database';
+import React from 'react';
 
 // Filter valid aspect IDs
 const validAspects = aspects.filter(a => a.id !== 'settings').map(a => a.id);
@@ -354,13 +371,46 @@ function MiniAppContent({ aspectId, theme, color }: { aspectId: AspectType; them
         notes: place.notes || undefined,
       }));
 
+      const [showTripDialog, setShowTripDialog] = React.useState(false);
+      const [showBucketDialog, setShowBucketDialog] = React.useState(false);
+      const [showPlaceDialog, setShowPlaceDialog] = React.useState(false);
+
       return (
-        <Tabs defaultValue="trips" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 mb-4">
-            <TabsTrigger value="trips">My Trips</TabsTrigger>
-            <TabsTrigger value="bucketlist">Bucket List</TabsTrigger>
-            <TabsTrigger value="map">World Map</TabsTrigger>
-          </TabsList>
+        <>
+          {/* Quick Action Buttons */}
+          <div className="flex gap-2 mb-4 flex-wrap">
+            <Button
+              onClick={() => setShowTripDialog(true)}
+              className="bg-gradient-to-r from-violet-600 to-pink-600"
+              size="sm"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              New Trip
+            </Button>
+            <Button
+              onClick={() => setShowBucketDialog(true)}
+              variant="outline"
+              size="sm"
+            >
+              <Heart className="h-4 w-4 mr-2" />
+              Add to Bucket List
+            </Button>
+            <Button
+              onClick={() => setShowPlaceDialog(true)}
+              variant="outline"
+              size="sm"
+            >
+              <MapPin className="h-4 w-4 mr-2" />
+              Log Visited Place
+            </Button>
+          </div>
+
+          <Tabs defaultValue="trips" className="w-full">
+            <TabsList className="grid w-full grid-cols-3 mb-4">
+              <TabsTrigger value="trips">My Trips</TabsTrigger>
+              <TabsTrigger value="bucketlist">Bucket List</TabsTrigger>
+              <TabsTrigger value="map">World Map</TabsTrigger>
+            </TabsList>
 
           {/* My Trips Tab */}
           <TabsContent value="trips" className="space-y-4">
@@ -397,16 +447,16 @@ function MiniAppContent({ aspectId, theme, color }: { aspectId: AspectType; them
                   : 0;
                 
                 return (
-                  <Card key={trip.id} className={cn("border", cardBg)}>
+            <Card key={trip.id} className={cn("border", cardBg)}>
                     <div className="h-1" style={{ backgroundColor: config.color }} />
-                    <CardContent className="p-4">
+              <CardContent className="p-4">
                       <div className="flex items-start gap-3">
                         <div className="w-12 h-12 rounded-xl flex items-center justify-center text-xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20">
                           ✈️
                         </div>
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <h3 className={cn("font-semibold", textPrimary)}>{trip.destination}</h3>
+                  <h3 className={cn("font-semibold", textPrimary)}>{trip.destination}</h3>
                             <Badge 
                               variant="secondary"
                               style={{ backgroundColor: `${config.color}20`, color: config.color }}
@@ -414,7 +464,7 @@ function MiniAppContent({ aspectId, theme, color }: { aspectId: AspectType; them
                               <StatusIcon className="h-3 w-3 mr-1" />
                               {config.label}
                             </Badge>
-                          </div>
+                </div>
                           {trip.start_date && (
                             <p className={cn("text-sm mb-2", textSecondary)}>
                               {new Date(trip.start_date).toLocaleDateString()}
@@ -422,16 +472,16 @@ function MiniAppContent({ aspectId, theme, color }: { aspectId: AspectType; them
                             </p>
                           )}
                           {trip.budget && trip.current_saved !== null && trip.current_saved !== undefined && (
-                            <div>
-                              <div className="flex justify-between text-sm mb-1">
-                                <span className={textSecondary}>Fund Progress</span>
+                <div>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className={textSecondary}>Fund Progress</span>
                                 <span style={{ color }}>{fundProgress}%</span>
                               </div>
                               <Progress value={fundProgress} className="h-2" />
                             </div>
                           )}
-                        </div>
-                      </div>
+                  </div>
+                </div>
                     </CardContent>
                   </Card>
                 );
@@ -489,14 +539,36 @@ function MiniAppContent({ aspectId, theme, color }: { aspectId: AspectType; them
                   </Card>
                 ))
               )}
-            </div>
+        </div>
           </TabsContent>
 
           {/* World Map Tab */}
           <TabsContent value="map" className="space-y-4">
-            <WorldMap visitedPlaces={mapPlaces} color={color} />
+            <InteractiveWorldMap 
+              visitedPlaces={mapPlaces} 
+              color={color}
+              onAddPlace={() => setShowPlaceDialog(true)}
+            />
           </TabsContent>
         </Tabs>
+
+        {/* Dialogs */}
+        <AddTripDialog
+          open={showTripDialog}
+          onOpenChange={setShowTripDialog}
+          onSuccess={() => {}}
+        />
+        <AddBucketListDialog
+          open={showBucketDialog}
+          onOpenChange={setShowBucketDialog}
+          onSuccess={() => {}}
+        />
+        <AddVisitedPlaceDialog
+          open={showPlaceDialog}
+          onOpenChange={setShowPlaceDialog}
+          onSuccess={() => {}}
+        />
+      </>
       );
 
     case 'business':
