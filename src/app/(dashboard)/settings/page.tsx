@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, lazy } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -14,12 +14,14 @@ import {
   CreditCard,
 } from 'lucide-react';
 import Link from 'next/link';
-import { InsightAgentSettings } from '@/components/settings/InsightAgentSettings';
-import { ProfileSettings } from '@/components/settings/ProfileSettings';
-import { AppearanceSettings } from '@/components/settings/AppearanceSettings';
-import { NotificationsSettings } from '@/components/settings/NotificationsSettings';
-import { PrivacySettings } from '@/components/settings/PrivacySettings';
-import { BillingSettings } from '@/components/settings/BillingSettings';
+
+// Lazy load settings components for faster initial load
+const ProfileSettings = lazy(() => import('@/components/settings/ProfileSettings').then(m => ({ default: m.ProfileSettings })));
+const InsightAgentSettings = lazy(() => import('@/components/settings/InsightAgentSettings').then(m => ({ default: m.InsightAgentSettings })));
+const NotificationsSettings = lazy(() => import('@/components/settings/NotificationsSettings').then(m => ({ default: m.NotificationsSettings })));
+const PrivacySettings = lazy(() => import('@/components/settings/PrivacySettings').then(m => ({ default: m.PrivacySettings })));
+const AppearanceSettings = lazy(() => import('@/components/settings/AppearanceSettings').then(m => ({ default: m.AppearanceSettings })));
+const BillingSettings = lazy(() => import('@/components/settings/BillingSettings').then(m => ({ default: m.BillingSettings })));
 
 function SettingsContent() {
   // TODO: Get actual user ID from auth
@@ -56,9 +58,9 @@ function SettingsContent() {
   ];
   
   return (
-    <div className="fixed inset-0 bg-background overflow-hidden">
+    <div className="fixed inset-0 bg-background overflow-hidden z-[100]">
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
+      <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-4">
           <Link href="/dashboard">
             <Button variant="ghost" size="icon">
@@ -91,44 +93,56 @@ function SettingsContent() {
             
             {/* Profile Tab */}
             <TabsContent value="profile" className="mt-0">
-              <div className="space-y-4">
-                <ProfileSettings userId={userId} />
-              </div>
+              <Suspense fallback={<div className="p-8 text-center text-muted-foreground">Loading...</div>}>
+                <div className="space-y-4">
+                  <ProfileSettings userId={userId} />
+                </div>
+              </Suspense>
             </TabsContent>
             
             {/* Insight Agent Tab */}
             <TabsContent value="insights" className="mt-0">
-              <div className="space-y-4">
-                <InsightAgentSettings userId={userId} />
-              </div>
+              <Suspense fallback={<div className="p-8 text-center text-muted-foreground">Loading...</div>}>
+                <div className="space-y-4">
+                  <InsightAgentSettings userId={userId} />
+                </div>
+              </Suspense>
             </TabsContent>
             
             {/* Notifications Tab */}
             <TabsContent value="notifications" className="mt-0">
-              <div className="space-y-4">
-                <NotificationsSettings userId={userId} />
-              </div>
+              <Suspense fallback={<div className="p-8 text-center text-muted-foreground">Loading...</div>}>
+                <div className="space-y-4">
+                  <NotificationsSettings userId={userId} />
+                </div>
+              </Suspense>
             </TabsContent>
             
             {/* Privacy Tab */}
             <TabsContent value="privacy" className="mt-0">
-              <div className="space-y-4">
-                <PrivacySettings />
-              </div>
+              <Suspense fallback={<div className="p-8 text-center text-muted-foreground">Loading...</div>}>
+                <div className="space-y-4">
+                  <PrivacySettings />
+                </div>
+              </Suspense>
             </TabsContent>
             
             {/* Appearance Tab */}
             <TabsContent value="appearance" className="mt-0">
-              <div className="space-y-4">
-                <AppearanceSettings />
-              </div>
+              <Suspense fallback={<div className="p-8 text-center text-muted-foreground">Loading...</div>}>
+                <div className="space-y-4">
+                  <AppearanceSettings />
+                </div>
+              </Suspense>
             </TabsContent>
             
             {/* Billing Tab */}
             <TabsContent value="billing" className="mt-0">
-              <div className="space-y-4">
-                <BillingSettings />
-              </div>
+              <Suspense fallback={<div className="p-8 text-center text-muted-foreground">Loading...</div>}>
+                <div className="space-y-4">
+                  <BillingSettings />
+                </div>
+              </Suspense>
             </TabsContent>
           </Tabs>
         </div>
@@ -139,14 +153,7 @@ function SettingsContent() {
 
 export default function SettingsPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading settings...</p>
-        </div>
-      </div>
-    }>
+    <Suspense fallback={<div className="fixed inset-0 bg-background z-[100]" />}>
       <SettingsContent />
     </Suspense>
   );
