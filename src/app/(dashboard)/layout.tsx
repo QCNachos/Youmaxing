@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { CalendarSidebar } from '@/components/CalendarSidebar';
 import { AvatarWithRing } from '@/components/3d/AvatarWithRing';
@@ -22,6 +22,9 @@ import { Progress } from '@/components/ui/progress';
 import { format, isSameDay, addDays, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, startOfWeek, endOfWeek } from 'date-fns';
 import { useAppStore } from '@/lib/store';
 import { aspects } from '@/lib/aspects';
+import { useTrips } from '@/hooks/useTravel';
+import { generateUnifiedEvents } from '@/lib/unifiedCalendar';
+import { tripsToCalendarEvents } from '@/lib/tripsToCalendar';
 import {
   Sparkles,
   Calendar,
@@ -151,12 +154,29 @@ function ExpandedCalendarView() {
   const [moodExpanded, setMoodExpanded] = useState(false);
   const [typeFilter, setTypeFilter] = useState<'all' | 'personal' | 'job'>('all');
 
+  // Fetch user's trips for calendar integration
+  const { trips } = useTrips();
+
+  // Debug: Log trips to verify they're being fetched
+  useEffect(() => {
+    console.log('📅 Expanded Calendar: Trips loaded:', trips);
+  }, [trips]);
+
   const getAspectColor = (aspectId: string) => {
     return aspects.find((a) => a.id === aspectId)?.color || '#8B5CF6';
   };
 
+  // Generate unified events including trips
+  const allEvents = useMemo(() => {
+    const unified = generateUnifiedEvents();
+    const tripEvents = tripsToCalendarEvents(trips);
+    console.log('📅 Expanded Calendar: Trip events generated:', tripEvents);
+    console.log('📅 Expanded Calendar: Total events:', [...unified, ...tripEvents, ...mockEvents].length);
+    return [...unified, ...tripEvents, ...mockEvents];
+  }, [trips]);
+
   // Filter events based on type
-  const filteredEvents = mockEvents.filter(event => 
+  const filteredEvents = allEvents.filter(event => 
     typeFilter === 'all' ? true : event.type === typeFilter
   );
 

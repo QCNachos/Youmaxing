@@ -11,6 +11,7 @@ import { Save, MapPin, Star, Loader2, Trash2 } from 'lucide-react';
 import { useVisitedPlaces } from '@/hooks/useTravel';
 import { toast } from 'sonner';
 import { geocodeLocation } from '@/lib/geocoding';
+import { CountrySelector, getFlagFromCountryName } from './CountrySelector';
 
 interface EditVisitedPlaceDialogProps {
   open: boolean;
@@ -147,19 +148,21 @@ export function EditVisitedPlaceDialog({ open, onOpenChange, onSuccess, place }:
           {/* Country */}
           <div className="space-y-2">
             <Label>Country *</Label>
-            <Input
-              required
-              placeholder="e.g., France, Japan, Italy"
+            <CountrySelector
               value={formData.country}
-              onChange={(e) => setFormData({ ...formData, country: e.target.value })}
+              onChange={(country) => {
+                // Auto-set emoji based on country
+                const emoji = getFlagFromCountryName(country);
+                setFormData({ ...formData, country, emoji });
+              }}
             />
           </div>
 
           {/* City */}
           <div className="space-y-2">
-            <Label>City (optional)</Label>
+            <Label>City/State (optional)</Label>
             <Input
-              placeholder="e.g., Paris, Tokyo, Rome"
+              placeholder="e.g., Paris, California"
               value={formData.city}
               onChange={(e) => setFormData({ ...formData, city: e.target.value })}
             />

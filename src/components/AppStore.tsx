@@ -1,12 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Switch } from '@/components/ui/switch';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Music,
@@ -52,9 +51,12 @@ interface AppItem {
   requiresOauth?: string[];
 }
 
-// All apps including V1 (10 main apps) and V2 (coming soon)
+// Apps marked as coming soon in V2 (lighter V1 launch)
+const V2_COMING_SOON_IDS = ['family', 'finance', 'friends'];
+
+// All apps including V1 (main apps) and V2 (coming soon)
 const allApps: AppItem[] = [
-  // V1 - Main Apps (Active)
+  // Main Apps from aspects (V1 active, V2 coming soon)
   ...aspects
     .filter((a) => a.id !== 'settings')
     .map((aspect) => ({
@@ -75,7 +77,8 @@ const allApps: AppItem[] = [
           : aspect.id === 'films' || aspect.id === 'events'
           ? ('entertainment' as const)
           : ('lifestyle' as const),
-      isActive: true,
+      // Mark family, finance, friends as coming soon for lighter V1 launch
+      isActive: !V2_COMING_SOON_IDS.includes(aspect.id),
     })),
   
   // V2 - Coming Soon Apps
@@ -150,8 +153,6 @@ export function AppStore({ open, onOpenChange, onAppSelect }: AppsDialogProps) {
     wishlistApps: savedWishlistApps,
     loading,
     savePreferences: hookSavePreferences,
-    toggleCarouselApp: hookToggleCarousel,
-    toggleWishlist: hookToggleWishlist,
   } = useCarouselApps();
 
   // Local state for unsaved changes in dialog
@@ -169,21 +170,42 @@ export function AppStore({ open, onOpenChange, onAppSelect }: AppsDialogProps) {
     { value: 'lifestyle', label: 'Lifestyle' },
   ];
 
-  const activeApps = allApps.filter((a) => a.isActive);
-  const comingSoonApps = allApps.filter((a) => !a.isActive);
+  // Memoize to prevent recalculation on every render
+  const activeApps = useMemo(() => allApps.filter((a) => a.isActive), []);
+  const comingSoonApps = useMemo(() => allApps.filter((a) => !a.isActive), []);
+  const activeAppIds = useMemo(() => activeApps.map((a) => a.slug), [activeApps]);
 
   const filteredApps =
     selectedCategory === 'all'
       ? allApps
       : allApps.filter((app) => app.category === selectedCategory);
 
-  // Sync local state when dialog opens
+  // Sync local state when dialog opens - filter out V2 apps, dedupe, and ensure min 5
   useEffect(() => {
     if (open && !loading) {
-      setLocalCarouselApps(savedCarouselApps);
-      setLocalWishlistApps(savedWishlistApps);
+      // Safety check for arrays
+      const safeCarouselApps = Array.isArray(savedCarouselApps) ? savedCarouselApps : [];
+      const safeWishlistApps = Array.isArray(savedWishlistApps) ? savedWishlistApps : [];
+      
+      // Filter out V2 coming soon apps and remove duplicates
+      const v1CarouselApps = [...new Set(
+        safeCarouselApps.filter((id) => !V2_COMING_SOON_IDS.includes(id))
+      )];
+      
+      // Ensure minimum 5 apps by adding defaults if needed
+      let finalApps = v1CarouselApps;
+      if (v1CarouselApps.length < 5) {
+        const missingCount = 5 - v1CarouselApps.length;
+        const additionalApps = activeAppIds
+          .filter((id) => !v1CarouselApps.includes(id))
+          .slice(0, missingCount);
+        finalApps = [...v1CarouselApps, ...additionalApps];
+      }
+      
+      setLocalCarouselApps(finalApps);
+      setLocalWishlistApps([...new Set(safeWishlistApps)]); // Dedupe wishlist too
     }
-  }, [open, loading, savedCarouselApps, savedWishlistApps]);
+  }, [open, loading, savedCarouselApps, savedWishlistApps, activeAppIds]);
 
   const handleSavePreferences = async () => {
     setSaving(true);
@@ -199,26 +221,43 @@ export function AppStore({ open, onOpenChange, onAppSelect }: AppsDialogProps) {
   };
 
   const toggleCarouselApp = (appSlug: string) => {
-    const newApps = localCarouselApps.includes(appSlug)
-      ? localCarouselApps.filter((s) => s !== appSlug)
-      : [...localCarouselApps, appSlug];
-
-    // Enforce constraints with toast notifications from hook
-    if (newApps.length < 5 || newApps.length > 10) {
-      hookToggleCarousel(appSlug); // This will show the error toast
-      return;
+    const isInCarousel = localCarouselApps.includes(appSlug);
+    
+    if (isInCarousel) {
+      // Removing - enforce minimum 5 apps
+      if (localCarouselApps.length <= 5) {
+        toast.error('Minimum 5 apps required in your carousel', {
+          description: 'You need at least 5 apps to keep your home screen functional.',
+        });
+        return;
+      }
+      setLocalCarouselApps(localCarouselApps.filter((s) => s !== appSlug));
+    } else {
+      // Adding - enforce maximum 10 apps and prevent duplicates
+      if (localCarouselApps.length >= 10) {
+        toast.error('Maximum 10 apps allowed in carousel', {
+          description: 'Remove an app first to add a new one.',
+        });
+        return;
+      }
+      // Use Set to ensure no duplicates
+      const newApps = [...new Set([...localCarouselApps, appSlug])];
+      setLocalCarouselApps(newApps);
     }
-
-    setLocalCarouselApps(newApps);
   };
 
   const toggleWishlist = (appSlug: string) => {
-    const newWishlist = localWishlistApps.includes(appSlug)
+    const isWishlisted = localWishlistApps.includes(appSlug);
+    const newWishlist = isWishlisted
       ? localWishlistApps.filter((s) => s !== appSlug)
       : [...localWishlistApps, appSlug];
 
     setLocalWishlistApps(newWishlist);
-    hookToggleWishlist(appSlug); // This will show the toast notification
+    toast.success(
+      isWishlisted
+        ? 'Removed from wishlist'
+        : "Added to wishlist! We'll notify you when it's ready."
+    );
   };
   
   const handleOpenApp = (appSlug: string) => {

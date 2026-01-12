@@ -182,3 +182,4 @@ For issues or questions:
 
 Enjoy your customizable app carousel! 🎉
 
+

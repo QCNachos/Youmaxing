@@ -24,6 +24,7 @@ export function NotificationsSettings({ userId }: NotificationsSettingsProps) {
     aspectReminders: true,
     socialUpdates: true,
     achievementAlerts: true,
+    autoAddSportsGamesToCalendar: false,
   });
 
   useEffect(() => {
@@ -61,6 +62,7 @@ export function NotificationsSettings({ userId }: NotificationsSettingsProps) {
           aspectReminders: enabled,
           socialUpdates: enabled,
           achievementAlerts: enabled,
+          autoAddSportsGamesToCalendar: (data as any).auto_add_sports_games_to_calendar ?? false,
         });
       }
     } catch (error) {
@@ -85,6 +87,7 @@ export function NotificationsSettings({ userId }: NotificationsSettingsProps) {
         .from('user_preferences')
         .update({
           notifications_enabled: preferences.emailNotifications || preferences.dailyDigest,
+          auto_add_sports_games_to_calendar: preferences.autoAddSportsGamesToCalendar,
           // Note: Additional notification preferences coming soon
         })
         .eq('user_id', user.id);
@@ -234,6 +237,19 @@ export function NotificationsSettings({ userId }: NotificationsSettingsProps) {
             <Switch 
               checked={preferences.achievementAlerts}
               onCheckedChange={(checked) => updatePreference('achievementAlerts', checked)}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-medium">Auto-add Sports Games to Calendar</p>
+              <p className="text-sm text-muted-foreground">
+                Automatically add favorite team games to your calendar
+              </p>
+            </div>
+            <Switch 
+              checked={preferences.autoAddSportsGamesToCalendar}
+              onCheckedChange={(checked) => updatePreference('autoAddSportsGamesToCalendar', checked)}
             />
           </div>
         </CardContent>

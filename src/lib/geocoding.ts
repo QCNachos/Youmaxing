@@ -3,6 +3,8 @@
  * Free, no API key required!
  */
 
+import { findCountryByName } from '@/components/travel/CountrySelector';
+
 export interface Coordinates {
   lat: number;
   lng: number;
@@ -14,8 +16,12 @@ export interface Coordinates {
  */
 export async function geocodeLocation(country: string, city?: string | null): Promise<Coordinates> {
   try {
+    // Normalize country name to handle variations (United-States, UnitedStates, etc.)
+    const countryData = findCountryByName(country);
+    const normalizedCountry = countryData?.name || country;
+    
     // Build the query
-    const query = city ? `${city}, ${country}` : country;
+    const query = city ? `${city}, ${normalizedCountry}` : normalizedCountry;
     
     // Use Nominatim API (OpenStreetMap's free geocoding service)
     const url = new URL('https://nominatim.openstreetmap.org/search');

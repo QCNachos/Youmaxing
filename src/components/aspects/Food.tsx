@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { useAppStore } from '@/lib/store';
+import { useChatStore } from '@/lib/chat/store';
 import { cn } from '@/lib/utils';
 import { 
   Utensils, 
@@ -28,16 +29,22 @@ import {
   Sparkles,
   Pill,
   ScanBarcode,
-  ChevronRight,
   X,
   Check,
   Loader2,
-  Upload,
   Zap,
   Package,
+  ShoppingCart,
+  Calendar,
+  ChefHat,
+  Search,
+  Heart,
 } from 'lucide-react';
-import type { Meal, FoodAnalysisResult, AnalyzedFood, Supplement, SupplementType } from '@/types/database';
-import { format } from 'date-fns';
+import type { Meal, FoodAnalysisResult, Supplement, SupplementType } from '@/types/database';
+import { format, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay } from 'date-fns';
+import { WeightHeightTracker } from '@/components/WeightHeightTracker';
+import { useRecipes, type Recipe, type RecipeInsert } from '@/hooks/useRecipes';
+import { RecipeCard, AddRecipeDialog, WeeklyMealPlan, GroceryList, InventoryManager } from '@/components/food';
 
 // Mock data for development
 const mockMeals: Meal[] = [
@@ -169,8 +176,10 @@ const quickMeals = [
 ];
 
 type InputMode = 'smart' | 'camera' | 'voice' | 'barcode' | 'manual';
+type StatsView = 'today' | 'week';
 
 export function Food() {
+  const { addMessage } = useChatStore();
   const [meals, setMeals] = useState<Meal[]>(mockMeals);
   const [supplements] = useState<Supplement[]>(mockSupplements);
   const [isAddingMeal, setIsAddingMeal] = useState(false);
@@ -180,7 +189,29 @@ export function Food() {
   const [isRecording, setIsRecording] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<FoodAnalysisResult | null>(null);
   const [smartInput, setSmartInput] = useState('');
-  const [waterCount, setWaterCount] = useState(6);
+  
+  // Hydration in ml (default 250ml per tap)
+  const [waterMl, setWaterMl] = useState(1500);
+  const targetWaterMl = 2000;
+  const waterPerTap = 250;
+  
+  // Stats view toggle
+  const [statsView, setStatsView] = useState<StatsView>('today');
+  
+  // Recipes
+  const { 
+    recipes, 
+    loading: recipesLoading, 
+    addRecipe, 
+    updateRecipe, 
+    deleteRecipe, 
+    toggleFavorite,
+    markAsCooked,
+  } = useRecipes();
+  const [isAddingRecipe, setIsAddingRecipe] = useState(false);
+  const [editingRecipe, setEditingRecipe] = useState<Recipe | null>(null);
+  const [recipeSearch, setRecipeSearch] = useState('');
+  const [selectedRecipeIds, setSelectedRecipeIds] = useState<string[]>([]);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -197,21 +228,57 @@ export function Food() {
   });
   const [barcodeInput, setBarcodeInput] = useState('');
 
-  const totalCalories = meals.reduce((sum, meal) => sum + (meal.calories || 0), 0);
-  const totalProtein = meals.reduce((sum, meal) => sum + (meal.protein || 0), 0);
-  const totalCarbs = meals.reduce((sum, meal) => sum + (meal.carbs || 0), 0);
-  const totalFat = meals.reduce((sum, meal) => sum + (meal.fat || 0), 0);
+  // Calculate today's totals
+  const todayMeals = meals.filter(m => isSameDay(new Date(m.logged_at), new Date()));
+  const totalCalories = todayMeals.reduce((sum, meal) => sum + (meal.calories || 0), 0);
+  const totalProtein = todayMeals.reduce((sum, meal) => sum + (meal.protein || 0), 0);
+  const totalCarbs = todayMeals.reduce((sum, meal) => sum + (meal.carbs || 0), 0);
+  const totalFat = todayMeals.reduce((sum, meal) => sum + (meal.fat || 0), 0);
+  
+  // Calculate weekly averages
+  const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+  const weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
+  const weekDays = eachDayOfInterval({ start: weekStart, end: weekEnd });
+  const daysWithData = weekDays.filter(day => 
+    meals.some(m => isSameDay(new Date(m.logged_at), day))
+  ).length || 1;
+  
+  const weeklyCaloriesAvg = Math.round(
+    meals.filter(m => new Date(m.logged_at) >= weekStart && new Date(m.logged_at) <= weekEnd)
+      .reduce((sum, meal) => sum + (meal.calories || 0), 0) / daysWithData
+  );
+  const weeklyProteinAvg = Math.round(
+    meals.filter(m => new Date(m.logged_at) >= weekStart && new Date(m.logged_at) <= weekEnd)
+      .reduce((sum, meal) => sum + (meal.protein || 0), 0) / daysWithData
+  );
+  
   const targetCalories = 2000;
   const targetProtein = 120;
   const targetCarbs = 250;
   const targetFat = 65;
 
-  const stats = [
-    { label: 'Today', value: `${totalCalories} cal`, trend: 'up' as const },
+  // Dynamic stats based on view
+  const stats = statsView === 'today' ? [
+    { label: 'Calories', value: `${totalCalories}`, trend: totalCalories <= targetCalories ? 'up' as const : 'down' as const },
     { label: 'Protein', value: `${totalProtein}g` },
-    { label: 'Meals', value: meals.length },
-    { label: 'Water', value: `${waterCount}/8`, trend: waterCount >= 6 ? 'up' as const : undefined },
+    { label: 'Meals', value: todayMeals.length },
+    { label: 'Hydration', value: `${waterMl}ml`, trend: waterMl >= targetWaterMl * 0.75 ? 'up' as const : undefined },
+  ] : [
+    { label: 'Avg Calories', value: `${weeklyCaloriesAvg}`, trend: weeklyCaloriesAvg <= targetCalories ? 'up' as const : 'down' as const },
+    { label: 'Avg Protein', value: `${weeklyProteinAvg}g` },
+    { label: 'Days Logged', value: daysWithData },
+    { label: 'Recipes', value: recipes.length },
   ];
+
+  // Order supplement via AI chat
+  const handleOrderSupplement = (supplement: Supplement) => {
+    const prompt = `I need to order ${supplement.name}${supplement.brand ? ` from ${supplement.brand}` : ''}. Can you help me find the best deals and where to buy it?`;
+    addMessage({
+      role: 'user',
+      content: prompt,
+      aspectId: 'food',
+    });
+  };
 
   // Barcode lookup
   const lookupBarcode = async () => {
@@ -229,7 +296,6 @@ export function Food() {
       if (data.success && data.result) {
         setAnalysisResult(data.result);
       } else {
-        // Product not found - switch to manual entry
         alert(data.message || 'Product not found. Try entering manually.');
         setInputMode('manual');
       }
@@ -271,7 +337,6 @@ export function Food() {
   const handleImageCapture = async (file: File) => {
     setIsAnalyzing(true);
     try {
-      // Convert to base64
       const base64 = await new Promise<string>((resolve) => {
         const reader = new FileReader();
         reader.onloadend = () => resolve(reader.result as string);
@@ -315,7 +380,6 @@ export function Food() {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
         stream.getTracks().forEach(track => track.stop());
         
-        // Send for transcription
         setIsAnalyzing(true);
         try {
           const formData = new FormData();
@@ -328,7 +392,6 @@ export function Food() {
           
           const transcribeData = await transcribeResponse.json();
           if (transcribeData.success && transcribeData.transcript) {
-            // Now analyze the transcript
             const analyzeResponse = await fetch('/api/food/analyze', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -437,22 +500,68 @@ export function Food() {
     resetAddMealState();
   };
 
+  // Recipe handlers
+  const handleSaveRecipe = async (recipe: RecipeInsert) => {
+    if (editingRecipe) {
+      await updateRecipe(editingRecipe.id, recipe);
+    } else {
+      await addRecipe(recipe);
+    }
+    setEditingRecipe(null);
+  };
+
+  const handleEditRecipe = (recipe: Recipe) => {
+    setEditingRecipe(recipe);
+    setIsAddingRecipe(true);
+  };
+
+  const filteredRecipes = recipeSearch
+    ? recipes.filter(r => 
+        r.name.toLowerCase().includes(recipeSearch.toLowerCase()) ||
+        r.tags.some(t => t.toLowerCase().includes(recipeSearch.toLowerCase()))
+      )
+    : recipes;
+
   return (
     <AspectLayout
       aspectId="food"
       stats={stats}
-      aiInsight="You're doing great with protein intake! Consider adding more leafy greens to your dinner for better micronutrients."
       onAddNew={() => setIsAddingMeal(true)}
       addNewLabel="Log Meal"
     >
+      {/* Stats View Toggle */}
+      <div className="flex justify-end -mt-2 mb-4">
+        <div className="inline-flex rounded-lg border p-1">
+          <Button
+            variant={statsView === 'today' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setStatsView('today')}
+            className="text-xs"
+          >
+            Today
+          </Button>
+          <Button
+            variant={statsView === 'week' ? 'default' : 'ghost'}
+            size="sm"
+            onClick={() => setStatsView('week')}
+            className="text-xs"
+          >
+            This Week
+          </Button>
+        </div>
+      </div>
+
       <Tabs defaultValue="today" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="today">Today</TabsTrigger>
-          <TabsTrigger value="quickadd">Quick Add</TabsTrigger>
+          <TabsTrigger value="menu">Weekly Menu</TabsTrigger>
+          <TabsTrigger value="recipes">Recipes</TabsTrigger>
+          <TabsTrigger value="grocery">Grocery</TabsTrigger>
           <TabsTrigger value="supplements">Supplements</TabsTrigger>
-          <TabsTrigger value="nutrition">Nutrition</TabsTrigger>
+          <TabsTrigger value="body">Body</TabsTrigger>
         </TabsList>
 
+        {/* TODAY TAB */}
         <TabsContent value="today" className="mt-6">
           {/* Calorie Progress */}
           <Card className="mb-6">
@@ -469,6 +578,65 @@ export function Food() {
               <Progress value={(totalCalories / targetCalories) * 100} className="h-2" />
             </CardContent>
           </Card>
+
+          {/* Macros + Hydration Row */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Macros Today</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {[
+                  { name: 'Protein', value: totalProtein, target: targetProtein, color: '#EF4444', unit: 'g' },
+                  { name: 'Carbs', value: totalCarbs, target: targetCarbs, color: '#F59E0B', unit: 'g' },
+                  { name: 'Fat', value: totalFat, target: targetFat, color: '#22C55E', unit: 'g' },
+                ].map((macro) => (
+                  <div key={macro.name}>
+                    <div className="flex justify-between mb-1">
+                      <span className="text-xs">{macro.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {macro.value}{macro.unit} / {macro.target}{macro.unit}
+                      </span>
+                    </div>
+                    <Progress value={(macro.value / macro.target) * 100} className="h-1.5" />
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Droplets className="h-4 w-4 text-blue-500" />
+                  Hydration
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-2xl font-bold">{waterMl}ml</span>
+                  <span className="text-sm text-muted-foreground">/ {targetWaterMl}ml</span>
+                </div>
+                <Progress value={(waterMl / targetWaterMl) * 100} className="h-2 mb-3" />
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setWaterMl(Math.max(0, waterMl - waterPerTap))}
+                    disabled={waterMl <= 0}
+                  >
+                    -{waterPerTap}ml
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="flex-1 bg-blue-500 hover:bg-blue-600"
+                    onClick={() => setWaterMl(waterMl + waterPerTap)}
+                  >
+                    +{waterPerTap}ml
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Smart Input Bar */}
           <Card className="mb-6 border-2 border-dashed border-primary/20 bg-gradient-to-r from-violet-500/5 to-pink-500/5">
@@ -508,7 +676,7 @@ export function Food() {
             </CardContent>
           </Card>
 
-          {meals.length === 0 ? (
+          {todayMeals.length === 0 ? (
             <EmptyState
               icon={Utensils}
               title="No meals logged today"
@@ -518,7 +686,7 @@ export function Food() {
             />
           ) : (
             <div className="space-y-4">
-              {meals.map((meal: any) => {
+              {todayMeals.map((meal: any) => {
                 const config = mealTypeConfig[meal.type as keyof typeof mealTypeConfig];
                 const Icon = config.icon;
                 return (
@@ -552,13 +720,6 @@ export function Food() {
                                 P: {meal.protein}g
                               </span>
                             )}
-                            {meal.source !== 'manual' && (
-                              <Badge variant="outline" className="text-xs">
-                                {meal.source === 'image' && <Camera className="h-3 w-3 mr-1" />}
-                                {meal.source === 'voice' && <Mic className="h-3 w-3 mr-1" />}
-                                AI
-                              </Badge>
-                            )}
                           </div>
                         </div>
                         <span className="text-sm text-muted-foreground">
@@ -573,65 +734,82 @@ export function Food() {
           )}
         </TabsContent>
 
-        <TabsContent value="quickadd" className="mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {quickMeals.map((meal, index) => {
-              const config = mealTypeConfig[meal.type as keyof typeof mealTypeConfig];
-              const Icon = config.icon;
-              return (
-                <Card key={index} className="hover:border-primary/50 transition-colors cursor-pointer">
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-4">
-                      <div
-                        className="w-10 h-10 rounded-lg flex items-center justify-center"
-                        style={{ backgroundColor: `${config.color}20` }}
-                      >
-                        <Icon className="h-5 w-5" style={{ color: config.color }} />
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="font-medium">{meal.name}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          {meal.calories} cal · P: {meal.protein}g · C: {meal.carbs}g · F: {meal.fat}g
-                        </p>
-                      </div>
-                      <Button
-                        size="sm"
-                        onClick={() => {
-                          const newMealEntry: Meal = {
-                            id: Date.now().toString(),
-                            user_id: '1',
-                            name: meal.name,
-                            type: meal.type as Meal['type'],
-                            calories: meal.calories,
-                            protein: meal.protein,
-                            carbs: meal.carbs,
-                            fat: meal.fat,
-                            fiber: null,
-                            sugar: null,
-                            sodium: null,
-                            serving_size: null,
-                            image_url: null,
-                            ai_analyzed: false,
-                            ai_confidence: null,
-                            ingredients: [],
-                            source: 'quick_add',
-                            notes: null,
-                            logged_at: new Date().toISOString(),
-                            created_at: new Date().toISOString(),
-                          };
-                          setMeals([newMealEntry, ...meals]);
-                        }}
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+        {/* WEEKLY MENU TAB */}
+        <TabsContent value="menu" className="mt-6">
+          <WeeklyMealPlan recipes={recipes} />
         </TabsContent>
 
+        {/* RECIPES TAB */}
+        <TabsContent value="recipes" className="mt-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="relative flex-1 max-w-sm">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search recipes..."
+                value={recipeSearch}
+                onChange={(e) => setRecipeSearch(e.target.value)}
+                className="pl-10"
+              />
+                      </div>
+            <Button onClick={() => { setEditingRecipe(null); setIsAddingRecipe(true); }} className="gap-2">
+                        <Plus className="h-4 w-4" />
+              Add Recipe
+                      </Button>
+                    </div>
+
+          {recipesLoading ? (
+            <div className="text-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
+          </div>
+          ) : filteredRecipes.length === 0 ? (
+            <EmptyState
+              icon={ChefHat}
+              title="No recipes yet"
+              description="Add your favorite recipes to build meal plans and generate grocery lists."
+              actionLabel="Add Recipe"
+              onAction={() => setIsAddingRecipe(true)}
+            />
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredRecipes.map((recipe) => (
+                <RecipeCard
+                  key={recipe.id}
+                  recipe={recipe}
+                  onEdit={handleEditRecipe}
+                  onDelete={deleteRecipe}
+                  onToggleFavorite={toggleFavorite}
+                  onMarkCooked={markAsCooked}
+                />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* GROCERY TAB */}
+        <TabsContent value="grocery" className="mt-6">
+          <Tabs defaultValue="list" className="w-full">
+            <TabsList className="mb-4">
+              <TabsTrigger value="list" className="gap-2">
+                <ShoppingCart className="h-4 w-4" />
+                Grocery List
+              </TabsTrigger>
+              <TabsTrigger value="inventory" className="gap-2">
+                <Package className="h-4 w-4" />
+                Inventory
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="list">
+              <GroceryList recipes={recipes} selectedRecipeIds={selectedRecipeIds} />
+            </TabsContent>
+            
+            <TabsContent value="inventory">
+              <InventoryManager isPremium={false} />
+            </TabsContent>
+          </Tabs>
+        </TabsContent>
+
+        {/* SUPPLEMENTS TAB */}
         <TabsContent value="supplements" className="mt-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold">My Supplements</h3>
@@ -676,6 +854,15 @@ export function Food() {
                         <Button size="sm" variant="ghost">
                           <Check className="h-4 w-4" />
                         </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleOrderSupplement(supplement)}
+                          className="gap-1"
+                        >
+                          <ShoppingCart className="h-3 w-3" />
+                          Order
+                        </Button>
                       </div>
                     </div>
                   </CardContent>
@@ -695,62 +882,13 @@ export function Food() {
           )}
         </TabsContent>
 
-        <TabsContent value="nutrition" className="mt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Macros Today</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {[
-                  { name: 'Protein', value: totalProtein, target: targetProtein, color: '#EF4444', unit: 'g' },
-                  { name: 'Carbs', value: totalCarbs, target: targetCarbs, color: '#F59E0B', unit: 'g' },
-                  { name: 'Fat', value: totalFat, target: targetFat, color: '#22C55E', unit: 'g' },
-                ].map((macro) => (
-                  <div key={macro.name}>
-                    <div className="flex justify-between mb-1">
-                      <span className="text-sm">{macro.name}</span>
-                      <span className="text-sm text-muted-foreground">
-                        {macro.value}{macro.unit} / {macro.target}{macro.unit}
-                      </span>
-                    </div>
-                    <Progress value={(macro.value / macro.target) * 100} className="h-2" />
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Droplets className="h-5 w-5 text-blue-500" />
-                  Hydration
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-center gap-2">
-                  {[1, 2, 3, 4, 5, 6, 7, 8].map((glass) => (
-                    <button
-                      key={glass}
-                      onClick={() => setWaterCount(glass)}
-                      className={`w-8 h-12 rounded-lg border-2 transition-colors ${
-                        glass <= waterCount 
-                          ? 'bg-blue-500/20 border-blue-500' 
-                          : 'border-border hover:border-blue-300'
-                      }`}
-                    />
-                  ))}
-                </div>
-                <p className="text-center text-sm text-muted-foreground mt-4">
-                  {waterCount} of 8 glasses today
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+        {/* BODY METRICS TAB */}
+        <TabsContent value="body" className="mt-6">
+          <WeightHeightTracker />
         </TabsContent>
       </Tabs>
 
-      {/* Add Meal Dialog - Enhanced with AI */}
+      {/* Add Meal Dialog */}
       <Dialog open={isAddingMeal} onOpenChange={(open) => !open && resetAddMealState()}>
         <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -824,9 +962,6 @@ export function Food() {
                     {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
                   </Button>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  AI will analyze and estimate calories & nutrients
-                </p>
               </div>
             </div>
           )}
@@ -858,9 +993,6 @@ export function Food() {
                   <>
                     <Camera className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
                     <p className="font-medium">Take a photo or upload</p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Point at your meal and AI will identify it
-                    </p>
                   </>
                 )}
               </div>
@@ -889,24 +1021,13 @@ export function Food() {
                   )}
                 </button>
                 <p className="text-sm text-muted-foreground text-center">
-                  {isAnalyzing 
-                    ? 'Processing your voice...' 
-                    : isRecording 
-                      ? 'Listening... tap to stop' 
-                      : 'Tap to start recording'}
+                  {isAnalyzing ? 'Processing...' : isRecording ? 'Listening... tap to stop' : 'Tap to start recording'}
                 </p>
-                {smartInput && (
-                  <Card className="w-full">
-                    <CardContent className="p-3">
-                      <p className="text-sm">&ldquo;{smartInput}&rdquo;</p>
-                    </CardContent>
-                  </Card>
-                )}
               </div>
             </div>
           )}
 
-          {/* Barcode Scan Mode */}
+          {/* Barcode Input Mode */}
           {inputMode === 'barcode' && (
             <div className="space-y-4 py-4">
               <div className="space-y-2">
@@ -918,28 +1039,13 @@ export function Food() {
                     onChange={(e) => setBarcodeInput(e.target.value.replace(/\D/g, ''))}
                     onKeyDown={(e) => e.key === 'Enter' && lookupBarcode()}
                     maxLength={14}
-                    inputMode="numeric"
                   />
                   <Button 
                     onClick={lookupBarcode} 
                     disabled={isAnalyzing || barcodeInput.length < 8}
-                    className="bg-gradient-to-r from-violet-600 to-pink-600"
                   >
                     {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <ScanBarcode className="h-4 w-4" />}
                   </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Enter the barcode from the product packaging (8-14 digits)
-                </p>
-              </div>
-              
-              <div className="text-center py-4">
-                <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-muted/50">
-                  <ScanBarcode className="h-8 w-8 text-muted-foreground" />
-                  <div className="text-left">
-                    <p className="text-sm font-medium">Camera scanning coming soon!</p>
-                    <p className="text-xs text-muted-foreground">For now, enter the barcode manually</p>
-                  </div>
                 </div>
               </div>
             </div>
@@ -961,7 +1067,6 @@ export function Food() {
                   <Label>Calories</Label>
               <Input
                 type="number"
-                placeholder="0"
                 value={newMeal.calories || ''}
                 onChange={(e) => setNewMeal({ ...newMeal, calories: parseInt(e.target.value) || 0 })}
               />
@@ -970,7 +1075,6 @@ export function Food() {
                   <Label>Protein (g)</Label>
                   <Input
                     type="number"
-                    placeholder="0"
                     value={newMeal.protein || ''}
                     onChange={(e) => setNewMeal({ ...newMeal, protein: parseInt(e.target.value) || 0 })}
                   />
@@ -979,7 +1083,6 @@ export function Food() {
                   <Label>Carbs (g)</Label>
                   <Input
                     type="number"
-                    placeholder="0"
                     value={newMeal.carbs || ''}
                     onChange={(e) => setNewMeal({ ...newMeal, carbs: parseInt(e.target.value) || 0 })}
                   />
@@ -988,19 +1091,10 @@ export function Food() {
                   <Label>Fat (g)</Label>
                   <Input
                     type="number"
-                    placeholder="0"
                     value={newMeal.fat || ''}
                     onChange={(e) => setNewMeal({ ...newMeal, fat: parseInt(e.target.value) || 0 })}
                   />
                 </div>
-            </div>
-            <div className="space-y-2">
-              <Label>Notes (optional)</Label>
-              <Input
-                placeholder="Any details..."
-                value={newMeal.notes}
-                onChange={(e) => setNewMeal({ ...newMeal, notes: e.target.value })}
-              />
             </div>
             <Button
               className="w-full bg-gradient-to-r from-violet-600 to-pink-600"
@@ -1039,50 +1133,26 @@ export function Food() {
                       <div className="text-right">
                         <p className="font-medium">{food.calories} cal</p>
                         <p className="text-xs text-muted-foreground">
-                          P: {food.protein}g · C: {food.carbs}g · F: {food.fat}g
+                          P: {food.protein}g
                         </p>
                       </div>
                     </div>
                   ))}
-
                   <div className="border-t pt-3">
                     <div className="flex items-center justify-between font-medium">
                       <span>Total</span>
                       <span>{analysisResult.total_calories} calories</span>
                     </div>
-                    <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                      <span>P: {analysisResult.total_protein}g</span>
-                      <span>C: {analysisResult.total_carbs}g</span>
-                      <span>F: {analysisResult.total_fat}g</span>
-                    </div>
                   </div>
                 </CardContent>
               </Card>
 
-              {analysisResult.suggestions && analysisResult.suggestions.length > 0 && (
-                <div className="text-sm text-muted-foreground">
-                  <p className="font-medium text-foreground mb-1">Tips:</p>
-                  <ul className="list-disc list-inside space-y-1">
-                    {analysisResult.suggestions.map((tip: string, idx: number) => (
-                      <li key={idx}>{tip}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
               <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => setAnalysisResult(null)}
-                >
+                <Button variant="outline" className="flex-1" onClick={() => setAnalysisResult(null)}>
                   <X className="h-4 w-4 mr-2" />
                   Adjust
                 </Button>
-                <Button
-                  className="flex-1 bg-gradient-to-r from-violet-600 to-pink-600"
-                  onClick={addMealFromAnalysis}
-                >
+                <Button className="flex-1 bg-gradient-to-r from-violet-600 to-pink-600" onClick={addMealFromAnalysis}>
                   <Check className="h-4 w-4 mr-2" />
                   Log Meal
                 </Button>
@@ -1126,10 +1196,6 @@ export function Food() {
                 })}
               </div>
             </div>
-            <div className="space-y-2">
-              <Label>Serving Size</Label>
-              <Input placeholder="e.g., 1 scoop (30g)" />
-            </div>
             <Button
               className="w-full bg-gradient-to-r from-violet-600 to-pink-600"
               onClick={() => setIsAddingSupplement(false)}
@@ -1140,6 +1206,17 @@ export function Food() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Add Recipe Dialog */}
+      <AddRecipeDialog
+        open={isAddingRecipe}
+        onOpenChange={(open) => {
+          setIsAddingRecipe(open);
+          if (!open) setEditingRecipe(null);
+        }}
+        onSave={handleSaveRecipe}
+        editingRecipe={editingRecipe}
+      />
     </AspectLayout>
   );
 }

@@ -17,7 +17,7 @@ ALTER TABLE watchlist ADD COLUMN IF NOT EXISTS genres text[];
 ALTER TABLE watchlist ADD COLUMN IF NOT EXISTS release_year integer;
 ALTER TABLE watchlist ADD COLUMN IF NOT EXISTS runtime_minutes integer;
 ALTER TABLE watchlist ADD COLUMN IF NOT EXISTS director text;
-ALTER TABLE watchlist ADD COLUMN IF NOT EXISTS cast text[];
+ALTER TABLE watchlist ADD COLUMN IF NOT EXISTS cast_members text[];
 ALTER TABLE watchlist ADD COLUMN IF NOT EXISTS imdb_id text;
 ALTER TABLE watchlist ADD COLUMN IF NOT EXISTS watched_date date;
 ALTER TABLE watchlist ADD COLUMN IF NOT EXISTS user_review text;
@@ -26,5 +26,6 @@ ALTER TABLE watchlist ADD COLUMN IF NOT EXISTS user_review text;
 CREATE INDEX IF NOT EXISTS idx_watchlist_tmdb ON watchlist(tmdb_id);
 CREATE INDEX IF NOT EXISTS idx_watchlist_tier ON watchlist(user_id, tier);
 CREATE INDEX IF NOT EXISTS idx_watchlist_franchise ON watchlist(user_id, franchise);
+
 
 

@@ -1,374 +1,322 @@
 /**
  * useCalendarChat - Hook for natural language calendar interactions
  * 
- * This hook enables the chat to process natural language requests
- * and execute calendar operations.
+ * This hook integrates with the chat memory store and calendar chat API
+ * to provide unified CRUD operations via natural language.
  */
 
-import { useState, useCallback } from 'react';
-import { executeCalendarTool, formatToolResponse, CALENDAR_TOOLS } from '@/lib/calendar-tools';
+import { useCallback } from 'react';
+import { useChatStore, getConversationHistory } from '@/lib/chat/store';
 import { format } from 'date-fns';
 
-export interface CalendarChatMessage {
-  role: 'user' | 'assistant' | 'system';
-  content: string;
-  tool_calls?: ToolCall[];
-  tool_results?: ToolResult[];
-}
-
-export interface ToolCall {
-  name: string;
-  parameters: Record<string, any>;
-}
+// ============================================================================
+// TYPES
+// ============================================================================
 
 export interface ToolResult {
   success: boolean;
-  data?: any;
+  data?: unknown;
   message?: string;
   error?: string;
 }
 
+export interface CalendarChatResponse {
+  message: string;
+  toolResults?: ToolResult[];
+  affectedItems?: Array<{ id: string; title: string; type: string }>;
+}
+
+// ============================================================================
+// HOOK
+// ============================================================================
+
 export function useCalendarChat() {
-  const [processing, setProcessing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { 
+    isProcessing, 
+    setProcessing, 
+    error, 
+    setError,
+    addMessage,
+    updateContext,
+    context,
+  } = useChatStore();
 
   /**
-   * Process a natural language message and extract/execute tool calls
-   * 
-   * This is a simplified version - in production, you'd call an LLM API
-   * to parse the message and generate tool calls.
+   * Process a natural language message and execute calendar operations
    */
-  const processMessage = useCallback(async (message: string): Promise<{
-    response: string;
-    toolResults?: ToolResult[];
-  }> => {
+  const processMessage = useCallback(async (
+    message: string
+  ): Promise<CalendarChatResponse> => {
     setProcessing(true);
     setError(null);
 
     try {
-      // Parse the message for common patterns
-      const toolCalls = parseMessageForToolCalls(message);
+      // Get conversation history for context
+      const history = getConversationHistory(15);
       
-      if (toolCalls.length === 0) {
-        // No calendar operations detected
-        return {
-          response: "I can help you with calendar operations! Try:\n• Add a task\n• Show my tasks\n• Create a weekly objective\n• List my monthly goals\n• Schedule an event",
-        };
+      // Add the current message to history for the API call
+      const messagesForAPI = [
+        ...history,
+        { role: 'user' as const, content: message },
+      ];
+
+      // Build context for the API
+      const recentItems: Array<{ id: string; title: string; type: string }> = [];
+      
+      context.recentTasks.forEach((t) => {
+        recentItems.push({ id: t.id, title: t.title, type: 'task' });
+      });
+      context.recentWeeklyObjectives.forEach((o) => {
+        recentItems.push({ id: o.id, title: o.title, type: 'weekly_objective' });
+      });
+      context.recentMonthlyObjectives.forEach((o) => {
+        recentItems.push({ id: o.id, title: o.title, type: 'monthly_objective' });
+      });
+      context.recentEvents.forEach((e) => {
+        recentItems.push({ id: e.id, title: e.title, type: 'event' });
+      });
+
+      // Call the calendar chat API
+      const response = await fetch('/api/calendar-chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: messagesForAPI,
+          context: {
+            currentDate: format(new Date(), 'yyyy-MM-dd'),
+            recentItems: recentItems.slice(-10), // Keep last 10 items
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || errorData.error || 'Request failed');
       }
 
-      // Execute all tool calls
-      const results: ToolResult[] = [];
-      for (const toolCall of toolCalls) {
-        const result = await executeCalendarTool(toolCall.name, toolCall.parameters);
-        results.push(result);
+      const data: CalendarChatResponse = await response.json();
+
+      // Update context with affected items
+      if (data.affectedItems) {
+        const tasks = data.affectedItems
+          .filter((i) => i.type === 'task')
+          .map((i) => ({ id: i.id, title: i.title }));
+        const weeklyObjectives = data.affectedItems
+          .filter((i) => i.type === 'weekly_objective')
+          .map((i) => ({ id: i.id, title: i.title }));
+        const monthlyObjectives = data.affectedItems
+          .filter((i) => i.type === 'monthly_objective')
+          .map((i) => ({ id: i.id, title: i.title }));
+        const events = data.affectedItems
+          .filter((i) => i.type === 'event')
+          .map((i) => ({ id: i.id, title: i.title }));
+
+        updateContext({
+          recentTasks: [...tasks, ...context.recentTasks].slice(0, 5),
+          recentWeeklyObjectives: [...weeklyObjectives, ...context.recentWeeklyObjectives].slice(0, 5),
+          recentMonthlyObjectives: [...monthlyObjectives, ...context.recentMonthlyObjectives].slice(0, 5),
+          recentEvents: [...events, ...context.recentEvents].slice(0, 5),
+        });
       }
 
-      // Format the response
-      const response = results
-        .map(result => formatToolResponse(result))
-        .join('\n\n');
+      return data;
 
-      return {
-        response,
-        toolResults: results,
-      };
-    } catch (err: any) {
-      const errorMessage = err?.message || 'An error occurred';
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
       setError(errorMessage);
       return {
-        response: `❌ Error: ${errorMessage}`,
+        message: `Sorry, I couldn't process that request: ${errorMessage}`,
       };
     } finally {
       setProcessing(false);
     }
-  }, []);
+  }, [context, setError, setProcessing, updateContext]);
 
   /**
-   * Execute a specific tool directly
+   * Send a message and add it to the chat history
+   * Returns the AI response
    */
-  const executeTool = useCallback(async (
-    toolName: string,
-    parameters: Record<string, any>
-  ): Promise<ToolResult> => {
-    setProcessing(true);
-    setError(null);
+  const sendMessage = useCallback(async (message: string): Promise<string> => {
+    // Add user message to store
+    addMessage({
+      role: 'user',
+      content: message,
+      aspectId: 'general',
+    });
 
-    try {
-      const result = await executeCalendarTool(toolName, parameters);
-      return result;
-    } catch (err: any) {
-      const errorMessage = err?.message || 'An error occurred';
-      setError(errorMessage);
-      return {
-        success: false,
-        error: errorMessage,
-      };
-    } finally {
-      setProcessing(false);
-    }
+    // Process the message
+    const response = await processMessage(message);
+
+    // Add AI response to store
+    addMessage({
+      role: 'assistant',
+      content: response.message,
+      aspectId: 'general',
+      toolResults: response.toolResults?.map((r, i) => ({
+        toolCallId: `tool-${Date.now()}-${i}`,
+        success: r.success,
+        data: r.data,
+        message: r.message,
+        error: r.error,
+      })),
+    });
+
+    return response.message;
+  }, [addMessage, processMessage]);
+
+  /**
+   * Clear the conversation and reset context
+   */
+  const clearConversation = useCallback(() => {
+    useChatStore.getState().clearMessages();
   }, []);
 
   return {
+    // Methods
     processMessage,
-    executeTool,
-    processing,
+    sendMessage,
+    clearConversation,
+    
+    // State
+    processing: isProcessing,
     error,
-    tools: CALENDAR_TOOLS,
+    
+    // Context
+    context,
+    updateContext,
   };
+}
+
+// ============================================================================
+// INTENT DETECTION (for UI routing)
+// ============================================================================
+
+/**
+ * Detect if a message is related to calendar/task operations
+ * Used to determine if the message should be routed to calendar chat
+ */
+export function detectCalendarIntent(message: string): boolean {
+  const lower = message.toLowerCase();
+  
+  // Primary calendar keywords
+  const calendarKeywords = [
+    'task', 'tasks', 'todo', 'to-do',
+    'event', 'events', 'calendar', 'schedule', 'meeting',
+    'objective', 'objectives', 'goal', 'goals',
+    'weekly', 'monthly', 'daily',
+    'remind', 'reminder',
+  ];
+  
+  // Action keywords
+  const actionKeywords = [
+    'add', 'create', 'new', 'make',
+    'show', 'list', 'what', 'view', 'see',
+    'complete', 'done', 'finish', 'mark',
+    'delete', 'remove', 'cancel',
+    'update', 'change', 'edit', 'modify', 'reschedule',
+  ];
+  
+  // Check for calendar keyword presence
+  const hasCalendarKeyword = calendarKeywords.some(keyword => lower.includes(keyword));
+  const hasActionKeyword = actionKeywords.some(keyword => lower.includes(keyword));
+  
+  // More specific patterns
+  const patterns = [
+    /add\s+(?:a\s+)?(?:task|event|meeting|goal|objective)/i,
+    /create\s+(?:a\s+)?(?:task|event|meeting|goal|objective)/i,
+    /show\s+(?:my\s+)?(?:tasks?|events?|calendar|schedule|goals?|objectives?)/i,
+    /list\s+(?:my\s+)?(?:tasks?|events?|goals?|objectives?)/i,
+    /what(?:'s|\s+is|\s+are)\s+(?:my\s+)?(?:tasks?|events?|schedule|goals?)/i,
+    /(?:complete|finish|done\s+with)\s+(?:the\s+)?/i,
+    /schedule\s+(?:a\s+)?/i,
+    /(?:this|next)\s+(?:week|month)/i,
+    /(?:today|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i,
+  ];
+  
+  const matchesPattern = patterns.some(pattern => pattern.test(lower));
+  
+  return matchesPattern || (hasCalendarKeyword && hasActionKeyword);
 }
 
 /**
- * Simple pattern matching for common calendar operations
- * 
- * In production, this would be replaced with LLM API calls
- * (e.g., OpenAI function calling, Anthropic tool use, etc.)
+ * Extract date references from natural language
  */
-function parseMessageForToolCalls(message: string): ToolCall[] {
+export function extractDateFromMessage(message: string): string | null {
   const lower = message.toLowerCase();
-  const today = format(new Date(), 'yyyy-MM-dd');
-  const tomorrow = format(new Date(Date.now() + 86400000), 'yyyy-MM-dd');
+  const today = new Date();
   
-  const toolCalls: ToolCall[] = [];
-
-  // CREATE TASK patterns
-  if (lower.includes('add task') || lower.includes('create task') || lower.includes('new task')) {
-    // Extract task details
-    const title = extractQuotedText(message) || extractAfterKeyword(message, ['task', 'add', 'create']);
-    const date = extractDate(lower) || today;
-    const type = lower.includes('work') || lower.includes('job') ? 'job' : 'personal';
-    const aspect_id = extractAspect(lower);
-    const priority = extractPriority(lower);
-
-    if (title) {
-      toolCalls.push({
-        name: 'create_task',
-        parameters: {
-          title,
-          date,
-          type,
-          ...(type === 'personal' && aspect_id ? { aspect_id } : {}),
-          ...(priority ? { priority } : {}),
-        },
-      });
-    }
+  // Today
+  if (lower.includes('today')) {
+    return format(today, 'yyyy-MM-dd');
   }
-
-  // LIST TASKS patterns
-  if (lower.includes('show task') || lower.includes('list task') || lower.includes('my tasks') || lower.includes('what tasks')) {
-    const date = extractDate(lower) || today;
-    toolCalls.push({
-      name: 'list_tasks',
-      parameters: { date },
-    });
-  }
-
-  // COMPLETE TASK patterns
-  if (lower.includes('complete') || lower.includes('done') || lower.includes('finish')) {
-    // This would need context to get the task_id
-    // For now, we'll need to implement a two-step process:
-    // 1. List tasks to get IDs
-    // 2. User specifies which one to complete
-    
-    // Simple pattern: "complete task [number]" from a recent list
-    const taskMatch = message.match(/task\s+(\d+)/i);
-    if (taskMatch) {
-      // This would require maintaining conversation context
-      // For now, just note that we need the ID
-      return toolCalls;
-    }
-  }
-
-  // CREATE WEEKLY OBJECTIVE patterns
-  if (lower.includes('weekly objective') || lower.includes('weekly goal') || lower.includes('this week')) {
-    const title = extractQuotedText(message) || extractAfterKeyword(message, ['objective', 'goal', 'week']);
-    const type = lower.includes('work') || lower.includes('job') ? 'job' : 'personal';
-    const aspect_id = extractAspect(lower);
-
-    if (title) {
-      toolCalls.push({
-        name: 'create_weekly_objective',
-        parameters: {
-          title,
-          date: today,
-          type,
-          ...(type === 'personal' && aspect_id ? { aspect_id } : {}),
-        },
-      });
-    }
-  }
-
-  // LIST WEEKLY OBJECTIVES
-  if (lower.includes('show weekly') || lower.includes('list weekly') || lower.includes('my week')) {
-    toolCalls.push({
-      name: 'list_weekly_objectives',
-      parameters: { date: today },
-    });
-  }
-
-  // CREATE MONTHLY GOAL patterns
-  if (lower.includes('monthly goal') || lower.includes('monthly objective') || lower.includes('this month')) {
-    const title = extractQuotedText(message) || extractAfterKeyword(message, ['goal', 'objective', 'month']);
-    const type = lower.includes('work') || lower.includes('job') ? 'job' : 'personal';
-    const aspect_id = extractAspect(lower);
-
-    if (title) {
-      toolCalls.push({
-        name: 'create_monthly_goal',
-        parameters: {
-          title,
-          date: today,
-          type,
-          ...(type === 'personal' && aspect_id ? { aspect_id } : {}),
-        },
-      });
-    }
-  }
-
-  // LIST MONTHLY GOALS
-  if (lower.includes('show monthly') || lower.includes('list monthly') || lower.includes('my month')) {
-    toolCalls.push({
-      name: 'list_monthly_goals',
-      parameters: { date: today },
-    });
-  }
-
-  // CREATE EVENT patterns
-  if (lower.includes('add event') || lower.includes('create event') || lower.includes('schedule')) {
-    const title = extractQuotedText(message) || extractAfterKeyword(message, ['event', 'schedule', 'meeting']);
-    const date = extractDate(lower) || today;
-    const time = extractTime(message);
-    const type = lower.includes('work') || lower.includes('job') ? 'job' : 'personal';
-    const aspect = extractAspect(lower);
-
-    if (title) {
-      toolCalls.push({
-        name: 'create_calendar_event',
-        parameters: {
-          title,
-          date,
-          type,
-          ...(time ? { time } : {}),
-          ...(type === 'personal' && aspect ? { aspect } : {}),
-        },
-      });
-    }
-  }
-
-  // LIST EVENTS
-  if (lower.includes('show event') || lower.includes('list event') || lower.includes('my events')) {
-    const date = extractDate(lower) || today;
-    toolCalls.push({
-      name: 'list_calendar_events',
-      parameters: { date },
-    });
-  }
-
-  return toolCalls;
-}
-
-// ============================================================================
-// HELPER FUNCTIONS FOR PARSING
-// ============================================================================
-
-function extractQuotedText(text: string): string | null {
-  const match = text.match(/"([^"]+)"|'([^']+)'/);
-  return match ? (match[1] || match[2]) : null;
-}
-
-function extractAfterKeyword(text: string, keywords: string[]): string {
-  for (const keyword of keywords) {
-    const regex = new RegExp(`${keyword}\\s+(.+?)(?:\\s+for|\\s+on|\\s+at|$)`, 'i');
-    const match = text.match(regex);
-    if (match) {
-      return match[1].trim();
-    }
-  }
-  return '';
-}
-
-function extractDate(text: string): string | null {
-  const today = format(new Date(), 'yyyy-MM-dd');
-  const tomorrow = format(new Date(Date.now() + 86400000), 'yyyy-MM-dd');
   
-  if (text.includes('today')) return today;
-  if (text.includes('tomorrow')) return tomorrow;
+  // Tomorrow
+  if (lower.includes('tomorrow')) {
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return format(tomorrow, 'yyyy-MM-dd');
+  }
   
-  // Look for YYYY-MM-DD format
-  const dateMatch = text.match(/(\d{4}-\d{2}-\d{2})/);
-  if (dateMatch) return dateMatch[1];
+  // Day names
+  const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  for (let i = 0; i < dayNames.length; i++) {
+    if (lower.includes(dayNames[i])) {
+      const currentDay = today.getDay();
+      let daysUntil = i - currentDay;
+      
+      // If "next" is mentioned or the day is today/past, move to next week
+      if (lower.includes('next') || daysUntil <= 0) {
+        daysUntil += 7;
+      }
+      
+      const targetDate = new Date(today);
+      targetDate.setDate(today.getDate() + daysUntil);
+      return format(targetDate, 'yyyy-MM-dd');
+    }
+  }
   
-  // Look for natural dates like "january 15" or "jan 15"
-  const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
-  const monthAbbr = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+  // This week / next week
+  if (lower.includes('this week')) {
+    return format(today, 'yyyy-MM-dd');
+  }
+  if (lower.includes('next week')) {
+    const nextWeek = new Date(today);
+    nextWeek.setDate(today.getDate() + 7);
+    return format(nextWeek, 'yyyy-MM-dd');
+  }
+  
+  // This month / next month
+  if (lower.includes('this month')) {
+    return format(today, 'yyyy-MM-dd');
+  }
+  if (lower.includes('next month')) {
+    const nextMonth = new Date(today);
+    nextMonth.setMonth(today.getMonth() + 1);
+    return format(nextMonth, 'yyyy-MM-dd');
+  }
+  
+  // Explicit date format (YYYY-MM-DD)
+  const dateMatch = lower.match(/(\d{4}-\d{2}-\d{2})/);
+  if (dateMatch) {
+    return dateMatch[1];
+  }
+  
+  // Natural date (e.g., "January 15", "Jan 15")
+  const monthNames = ['january', 'february', 'march', 'april', 'may', 'june', 
+                      'july', 'august', 'september', 'october', 'november', 'december'];
+  const monthAbbr = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 
+                     'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
   
   for (let i = 0; i < monthNames.length; i++) {
-    const monthPattern = new RegExp(`(${monthNames[i]}|${monthAbbr[i]})\\s+(\\d{1,2})`, 'i');
-    const match = text.match(monthPattern);
+    const pattern = new RegExp(`(${monthNames[i]}|${monthAbbr[i]})\\s+(\\d{1,2})`, 'i');
+    const match = lower.match(pattern);
     if (match) {
       const day = parseInt(match[2]);
-      const year = new Date().getFullYear();
-      return format(new Date(year, i, day), 'yyyy-MM-dd');
+      const year = today.getFullYear();
+      const date = new Date(year, i, day);
+      return format(date, 'yyyy-MM-dd');
     }
   }
   
   return null;
 }
-
-function extractTime(text: string): string | null {
-  // Look for HH:MM format
-  const timeMatch = text.match(/(\d{1,2}):(\d{2})\s*(am|pm)?/i);
-  if (timeMatch) {
-    let hours = parseInt(timeMatch[1]);
-    const minutes = timeMatch[2];
-    const meridian = timeMatch[3]?.toLowerCase();
-    
-    if (meridian === 'pm' && hours < 12) hours += 12;
-    if (meridian === 'am' && hours === 12) hours = 0;
-    
-    return `${hours.toString().padStart(2, '0')}:${minutes}`;
-  }
-  
-  // Look for natural time like "7am" or "3pm"
-  const naturalTimeMatch = text.match(/(\d{1,2})\s*(am|pm)/i);
-  if (naturalTimeMatch) {
-    let hours = parseInt(naturalTimeMatch[1]);
-    const meridian = naturalTimeMatch[2].toLowerCase();
-    
-    if (meridian === 'pm' && hours < 12) hours += 12;
-    if (meridian === 'am' && hours === 12) hours = 0;
-    
-    return `${hours.toString().padStart(2, '0')}:00`;
-  }
-  
-  return null;
-}
-
-function extractAspect(text: string): string | null {
-  const aspectKeywords = {
-    training: ['training', 'gym', 'workout', 'exercise', 'fitness'],
-    food: ['food', 'meal', 'diet', 'nutrition', 'eat', 'cook'],
-    finance: ['finance', 'money', 'budget', 'investment', 'savings'],
-    business: ['business', 'work', 'meeting', 'client', 'project'],
-    friends: ['friends', 'social', 'hangout', 'party', 'dinner'],
-    sleep: ['sleep', 'rest', 'bedtime', 'nap'],
-  };
-
-  for (const [aspect, keywords] of Object.entries(aspectKeywords)) {
-    if (keywords.some(keyword => text.includes(keyword))) {
-      return aspect;
-    }
-  }
-
-  return null;
-}
-
-function extractPriority(text: string): string | null {
-  if (text.includes('high priority') || text.includes('urgent') || text.includes('important')) {
-    return 'high';
-  }
-  if (text.includes('low priority') || text.includes('whenever')) {
-    return 'low';
-  }
-  return null;
-}
-

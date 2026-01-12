@@ -17,7 +17,7 @@ Balance between casual and informative. Example: "Thought you might want to know
 
 // Get system prompt for chat
 export function getSystemPrompt(tone: AITone, userName?: string): string {
-  const basePrompt = `You are YOUMAXING, an AI life management companion. You help users manage 11 aspects of their life: Training, Food, Sports, Films, Finance, Business, Travel, Family, Friends, Events, and Settings.
+  const basePrompt = `You are YOUMAXING, an AI life management companion. You help users manage 11 aspects of their life: Training, Food, Sports, TV, Finance, Business, Travel, Family, Friends, Events, and Settings.
 
 Your role is to:
 1. Check in with users 1-5 times daily with personalized insights

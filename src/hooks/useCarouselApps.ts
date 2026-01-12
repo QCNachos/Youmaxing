@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { aspects } from '@/lib/aspects';
 import { toast } from 'sonner';
@@ -9,6 +9,9 @@ import { toast } from 'sonner';
 let cachedCarouselApps: string[] | null = null;
 let cachedWishlistApps: string[] | null = null;
 let listeners: Array<() => void> = [];
+
+// Apps marked as coming soon in V2 (lighter V1 launch)
+const V2_COMING_SOON_IDS = ['family', 'finance', 'friends'];
 
 // Notify all listeners when preferences change
 function notifyListeners() {
@@ -33,9 +36,17 @@ export function useCarouselApps() {
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
 
-  // Get available aspects (excluding settings)
-  const availableAspects = aspects.filter(a => a.id !== 'settings');
-  const defaultApps = availableAspects.slice(0, 5).map(a => a.id);
+  // Get available aspects (excluding settings and V2 coming soon apps) - memoized
+  const availableAspects = useMemo(() => 
+    aspects.filter(a => a.id !== 'settings' && !V2_COMING_SOON_IDS.includes(a.id)),
+    []
+  );
+  
+  // Default apps for carousel (first 5 of available V1 apps) - memoized
+  const defaultApps = useMemo(() => 
+    availableAspects.slice(0, 5).map(a => a.id),
+    [availableAspects]
+  );
 
   // Load preferences from database
   const loadPreferences = useCallback(async (forceRefresh = false) => {
@@ -81,17 +92,18 @@ export function useCarouselApps() {
         setWishlistApps([]);
       } else {
         // Priority: carousel_apps > installed_apps > defaults
-        const apps = preferences?.carousel_apps && preferences.carousel_apps.length > 0
+        const rawApps = preferences?.carousel_apps && preferences.carousel_apps.length > 0
           ? preferences.carousel_apps
           : preferences?.installed_apps && preferences.installed_apps.length > 0
           ? preferences.installed_apps
           : defaultApps;
 
-        // Ensure we have at least 5 apps
-        const finalApps = apps.length >= 5 ? apps : defaultApps;
+        // Deduplicate and ensure we have at least 5 apps
+        const dedupedApps = [...new Set(rawApps)];
+        const finalApps = dedupedApps.length >= 5 ? dedupedApps : defaultApps;
 
         cachedCarouselApps = finalApps;
-        cachedWishlistApps = preferences?.wishlist_apps || [];
+        cachedWishlistApps = [...new Set(preferences?.wishlist_apps || [])];
         setCarouselApps(finalApps);
         setWishlistApps(cachedWishlistApps);
       }
@@ -179,9 +191,25 @@ export function useCarouselApps() {
     );
   }, [wishlistApps]);
 
-  // Get filtered aspects for display
+  // Get filtered aspects for display (only V1 available apps in carousel)
   const getFilteredAspects = useCallback(() => {
-    return availableAspects.filter(aspect => carouselApps.includes(aspect.id));
+    // Filter to only show apps that are:
+    // 1. In the user's carousel selection
+    // 2. Available in V1 (not coming soon)
+    const filteredApps = carouselApps.filter(id => !V2_COMING_SOON_IDS.includes(id));
+    const result = availableAspects.filter(aspect => filteredApps.includes(aspect.id));
+    
+    // Ensure minimum 5 apps - if user has fewer due to V2 filtering, add defaults
+    if (result.length < 5) {
+      const missingCount = 5 - result.length;
+      const existingIds = result.map(a => a.id);
+      const additionalApps = availableAspects
+        .filter(a => !existingIds.includes(a.id))
+        .slice(0, missingCount);
+      return [...result, ...additionalApps];
+    }
+    
+    return result;
   }, [carouselApps, availableAspects]);
 
   // Initial load

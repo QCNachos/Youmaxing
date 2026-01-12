@@ -52,7 +52,7 @@ const statusConfig = {
 };
 
 export function Travel() {
-  console.log('Travel component rendered - version with Edit buttons');
+  console.log('🚀 Travel component v2.0 - BUILD TIME:', new Date().toISOString());
   
   const { theme } = useAppStore();
   const { trips } = useTrips();
@@ -293,9 +293,11 @@ export function Travel() {
               notes: place.notes || undefined,
               rating: place.rating || undefined
             }))} 
+            trips={trips}
+            bucketList={bucketList}
             color="#06B6D4" 
             onAddPlace={() => setIsAddingPlace(true)}
-            onPlaceClick={(place) => {
+            onEditPlace={(place) => {
               // Find the full place object from visitedPlaces
               const fullPlace = visitedPlaces.find(p => p.id === place.id);
               if (fullPlace) setEditingPlace(fullPlace);

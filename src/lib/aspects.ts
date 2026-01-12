@@ -50,7 +50,7 @@ export const aspects: AspectConfig[] = [
   },
   {
     id: 'films',
-    name: 'Film & Series',
+    name: 'TV',
     description: 'Watchlist and recommendations',
     icon: Film,
     color: '#A855F7',

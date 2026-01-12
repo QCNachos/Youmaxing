@@ -2,11 +2,12 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useAppStore } from '@/lib/store';
+import { useChatStore, type ChatMessage } from '@/lib/chat/store';
+import { useCalendarChat, detectCalendarIntent } from '@/hooks/useCalendarChat';
 import { aspects } from '@/lib/aspects';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { useCalendarChat } from '@/hooks/useCalendarChat';
 import {
   Send,
   Sparkles,
@@ -16,136 +17,106 @@ import {
   Calendar,
   CheckCircle2,
   Target,
+  Trash2,
+  Loader2,
 } from 'lucide-react';
 
-interface Message {
-  id: string;
-  type: 'ai' | 'user' | 'suggestion';
-  content: string;
-  aspectId: string;
-  timestamp: Date;
-}
-
-// Filter out settings
+// Filter out settings from aspects
 const chatAspects = aspects.filter(a => a.id !== 'settings');
 
-// Time-based greeting
-function getTimeGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 18) return 'Good afternoon';
-  return 'Good evening';
-}
-
-// Initial AI messages (global context)
-const initialMessages: Message[] = [
-  {
-    id: '1',
-    type: 'ai',
-    content: `${getTimeGreeting()}! 👋 I'm your YOUMAXING assistant. I'm here to help you maximize every aspect of your life. What would you like to focus on today?`,
-    aspectId: 'general',
-    timestamp: new Date(Date.now() - 60000),
-  },
-  {
-    id: '2',
-    type: 'suggestion',
-    content: '💪 Training: Your workout streak is at 5 days! Consider scheduling your next session.',
-    aspectId: 'training',
-    timestamp: new Date(Date.now() - 30000),
-  },
-  {
-    id: '3',
-    type: 'suggestion',
-    content: '📈 Finance: Market insights available. Tech stocks showing positive momentum.',
-    aspectId: 'finance',
-    timestamp: new Date(),
-  },
-];
+// ============================================================================
+// COMPONENT
+// ============================================================================
 
 export function GlobalChat() {
   const { currentAspect, theme } = useAppStore();
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const { 
+    messages, 
+    addMessage, 
+    clearMessages,
+    isProcessing: storeProcessing,
+  } = useChatStore();
+  const { sendMessage, processing: chatProcessing } = useCalendarChat();
+  
   const [input, setInput] = useState('');
-  const [isTyping, setIsTyping] = useState(false);
   const [filterAspect, setFilterAspect] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { processMessage, processing } = useCalendarChat();
 
   const currentAspectConfig = aspects.find((a) => a.id === currentAspect);
-
-  // Auto-filter to current aspect when it changes (optional UX)
-  useEffect(() => {
-    // Could auto-set filter here, but keeping it manual for user control
-  }, [currentAspect]);
+  const isProcessing = storeProcessing || chatProcessing;
 
   // Scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Filter messages
+  // Filter messages by aspect
   const filteredMessages = filterAspect 
-    ? messages.filter(m => m.aspectId === filterAspect || m.aspectId === 'general')
+    ? messages.filter(m => m.aspectId === filterAspect || m.aspectId === 'general' || !m.aspectId)
     : messages;
 
   const handleSend = async () => {
-    if (!input.trim()) return;
+    if (!input.trim() || isProcessing) return;
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      type: 'user',
-      content: input,
-      aspectId: currentAspect,
-      timestamp: new Date(),
-    };
-
-    setMessages((prev) => [...prev, userMessage]);
-    const messageText = input;
+    const messageText = input.trim();
     setInput('');
-    setIsTyping(true);
 
     // Check if this is a calendar-related message
     const isCalendarMessage = detectCalendarIntent(messageText);
 
     if (isCalendarMessage) {
-      // Process calendar operations
-      try {
-        const { response, toolResults } = await processMessage(messageText);
-        
-        const aiResponse: Message = {
-          id: (Date.now() + 1).toString(),
-          type: 'ai',
-          content: response,
-          aspectId: 'general',
-          timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, aiResponse]);
-      } catch (error) {
-        const errorMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          type: 'ai',
-          content: '❌ Sorry, I encountered an error processing your calendar request. Please try again.',
-          aspectId: 'general',
-          timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, errorMessage]);
-      }
-      setIsTyping(false);
+      // Use the calendar chat hook which handles adding messages
+      await sendMessage(messageText);
     } else {
-      // Regular AI response
-      setTimeout(() => {
-        const aiResponse: Message = {
-          id: (Date.now() + 1).toString(),
-          type: 'ai',
+      // Add user message
+      addMessage({
+        role: 'user',
+        content: messageText,
+        aspectId: currentAspect,
+      });
+
+      // For non-calendar messages, use the regular chat API
+      try {
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: messages.slice(-10).map(m => ({
+              role: m.role === 'assistant' ? 'assistant' : 'user',
+              content: m.content,
+            })).concat([{ role: 'user', content: messageText }]),
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          addMessage({
+            role: 'assistant',
+            content: data.message || 'I understood your request.',
+            aspectId: currentAspect,
+          });
+        } else {
+          // Fallback response
+          addMessage({
+            role: 'assistant',
+            content: getAIResponse(messageText, currentAspect),
+            aspectId: currentAspect,
+          });
+        }
+      } catch {
+        // Fallback response on error
+        addMessage({
+          role: 'assistant',
           content: getAIResponse(messageText, currentAspect),
           aspectId: currentAspect,
-          timestamp: new Date(),
-        };
-        setMessages((prev) => [...prev, aiResponse]);
-        setIsTyping(false);
-      }, 800 + Math.random() * 800);
+        });
+      }
     }
+  };
+
+  const handleClearChat = () => {
+    clearMessages();
   };
 
   return (
@@ -177,37 +148,54 @@ export function GlobalChat() {
             <p className={cn(
               "text-xs",
               theme === 'light' ? "text-slate-400" : "text-white/40"
-            )}>Always here to help</p>
+            )}>Tasks, Calendar & More</p>
           </div>
         </div>
 
-        {/* Filter Toggle */}
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setShowFilters(!showFilters)}
-          className={cn(
-            "rounded-xl gap-2",
-            theme === 'light'
-              ? cn(
-                  "text-slate-500 hover:text-violet-600 hover:bg-violet-50",
-                  filterAspect && "bg-violet-50 text-violet-600"
-                )
-              : cn(
-                  "text-white/60 hover:text-white hover:bg-white/10",
-                  filterAspect && "bg-white/10 text-white"
-                )
-          )}
-        >
-          <Filter className="h-4 w-4" />
-          {filterAspect ? (
-            <span className="text-xs">
-              {chatAspects.find(a => a.id === filterAspect)?.name}
-            </span>
-          ) : (
-            <span className="text-xs">All</span>
-          )}
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* Clear Chat Button */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleClearChat}
+            className={cn(
+              "rounded-xl",
+              theme === 'light'
+                ? "text-slate-400 hover:text-red-500 hover:bg-red-50"
+                : "text-white/40 hover:text-red-400 hover:bg-red-500/10"
+            )}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+
+          {/* Filter Toggle */}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowFilters(!showFilters)}
+            className={cn(
+              "rounded-xl gap-2",
+              theme === 'light'
+                ? cn(
+                    "text-slate-500 hover:text-violet-600 hover:bg-violet-50",
+                    filterAspect && "bg-violet-50 text-violet-600"
+                  )
+                : cn(
+                    "text-white/60 hover:text-white hover:bg-white/10",
+                    filterAspect && "bg-white/10 text-white"
+                  )
+            )}
+          >
+            <Filter className="h-4 w-4" />
+            {filterAspect ? (
+              <span className="text-xs">
+                {chatAspects.find(a => a.id === filterAspect)?.name}
+              </span>
+            ) : (
+              <span className="text-xs">All</span>
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* Filter Pills */}
@@ -294,17 +282,19 @@ export function GlobalChat() {
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 scrollbar-thin">
         {filteredMessages.map((message) => {
           const msgAspect = chatAspects.find(a => a.id === message.aspectId);
+          const isUser = message.role === 'user';
+          const isSuggestion = message.content.startsWith('[suggestion]');
           
           return (
             <div
               key={message.id}
               className={cn(
                 'flex items-start gap-3 animate-fade-in',
-                message.type === 'user' && 'flex-row-reverse'
+                isUser && 'flex-row-reverse'
               )}
             >
               {/* AI Avatar */}
-              {message.type === 'ai' && (
+              {!isUser && !isSuggestion && (
                 <div 
                   className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
                   style={{ 
@@ -316,7 +306,7 @@ export function GlobalChat() {
               )}
               
               {/* Suggestion Avatar */}
-              {message.type === 'suggestion' && (
+              {isSuggestion && (
                 <div 
                   className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
                   style={{ 
@@ -335,38 +325,53 @@ export function GlobalChat() {
               <div
                 className={cn(
                   'max-w-[75%] px-4 py-2.5 rounded-2xl',
-                  message.type === 'user'
+                  isUser
                     ? 'rounded-tr-lg'
                     : 'rounded-tl-lg',
-                  message.type === 'user'
+                  isUser
                     ? theme === 'light'
                       ? 'bg-violet-500 text-white'
                       : 'bg-white/10 text-white'
-                    : message.type === 'suggestion'
+                    : isSuggestion
                     ? 'border'
                     : theme === 'light'
                       ? 'bg-slate-50 border border-slate-200 text-slate-700'
                       : 'bg-white/5 border border-white/10 text-white/90'
                 )}
-                style={message.type === 'suggestion' && msgAspect ? {
+                style={isSuggestion && msgAspect ? {
                   backgroundColor: `${msgAspect.color}${theme === 'light' ? '10' : '10'}`,
                   borderColor: `${msgAspect.color}${theme === 'light' ? '30' : '30'}`,
                   color: theme === 'light' ? undefined : 'rgba(255,255,255,0.9)',
                 } : undefined}
               >
                 <p className={cn(
-                  "text-sm leading-relaxed",
-                  message.type === 'suggestion' && theme === 'light' && "text-slate-700"
-                )}>{message.content}</p>
+                  "text-sm leading-relaxed whitespace-pre-wrap",
+                  isSuggestion && theme === 'light' && "text-slate-700"
+                )}>
+                  {isSuggestion ? message.content.replace('[suggestion]', '') : message.content}
+                </p>
+
+                {/* Tool results indicator */}
+                {message.toolResults && message.toolResults.length > 0 && (
+                  <div className={cn(
+                    "mt-2 pt-2 border-t flex items-center gap-2",
+                    theme === 'light' ? "border-slate-200" : "border-white/10"
+                  )}>
+                    <CheckCircle2 className="h-3 w-3 text-green-500" />
+                    <span className="text-xs text-green-500">
+                      {message.toolResults.length} action(s) completed
+                    </span>
+                  </div>
+                )}
 
                 {/* Timestamp */}
                 <p className={cn(
                   "text-[10px] mt-1.5",
-                  message.type === 'user'
+                  isUser
                     ? "text-white/60"
                     : theme === 'light' ? "text-slate-400" : "text-white/30"
                 )}>
-                  {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </p>
               </div>
             </div>
@@ -374,7 +379,7 @@ export function GlobalChat() {
         })}
 
         {/* Typing Indicator */}
-        {isTyping && (
+        {isProcessing && (
           <div className="flex items-start gap-3 animate-fade-in">
             <div
               className="w-8 h-8 rounded-xl flex items-center justify-center"
@@ -390,16 +395,49 @@ export function GlobalChat() {
                 ? "bg-slate-50 border border-slate-200"
                 : "bg-white/5 border border-white/10"
             )}>
-              <div className="flex gap-1.5">
-                <span className={cn("w-1.5 h-1.5 rounded-full animate-bounce", theme === 'light' ? "bg-violet-400" : "bg-white/40")} />
-                <span className={cn("w-1.5 h-1.5 rounded-full animate-bounce", theme === 'light' ? "bg-violet-400" : "bg-white/40")} style={{ animationDelay: '0.1s' }} />
-                <span className={cn("w-1.5 h-1.5 rounded-full animate-bounce", theme === 'light' ? "bg-violet-400" : "bg-white/40")} style={{ animationDelay: '0.2s' }} />
+              <div className="flex items-center gap-2">
+                <Loader2 className={cn(
+                  "h-4 w-4 animate-spin",
+                  theme === 'light' ? "text-violet-500" : "text-white/60"
+                )} />
+                <span className={cn(
+                  "text-xs",
+                  theme === 'light' ? "text-slate-500" : "text-white/50"
+                )}>
+                  Processing...
+                </span>
               </div>
             </div>
           </div>
         )}
 
         <div ref={messagesEndRef} />
+      </div>
+
+      {/* Quick Actions */}
+      <div className={cn(
+        "px-4 py-2 border-t flex gap-2 overflow-x-auto scrollbar-none",
+        theme === 'light' ? "border-violet-100" : "border-white/5"
+      )}>
+        {[
+          { label: 'Show my tasks', icon: CheckCircle2 },
+          { label: 'Add a task', icon: Calendar },
+          { label: 'Weekly objectives', icon: Target },
+        ].map((action) => (
+          <button
+            key={action.label}
+            onClick={() => setInput(action.label)}
+            className={cn(
+              "px-3 py-1.5 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 whitespace-nowrap",
+              theme === 'light'
+                ? "bg-violet-50 text-violet-600 hover:bg-violet-100"
+                : "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white/80"
+            )}
+          >
+            <action.icon className="h-3 w-3" />
+            {action.label}
+          </button>
+        ))}
       </div>
 
       {/* Input Area */}
@@ -411,27 +449,33 @@ export function GlobalChat() {
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-            placeholder={`Ask about ${currentAspectConfig?.name.toLowerCase() || 'anything'}...`}
+            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
+            placeholder="Add a task, check my schedule, set a goal..."
+            disabled={isProcessing}
             className={cn(
               "w-full h-11 rounded-2xl pl-4 pr-12 text-sm focus:ring-0",
               theme === 'light'
                 ? "bg-slate-50 border-slate-200 text-slate-800 placeholder:text-slate-400 focus:border-violet-300"
-                : "bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-white/20"
+                : "bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-white/20",
+              isProcessing && "opacity-50"
             )}
           />
           <Button
             size="icon"
             className="absolute right-1.5 rounded-xl h-8 w-8 transition-all"
             style={{
-              background: input.trim()
+              background: input.trim() && !isProcessing
                 ? `linear-gradient(135deg, ${currentAspectConfig?.color}, ${currentAspectConfig?.color}80)`
                 : undefined
             }}
-            disabled={!input.trim()}
+            disabled={!input.trim() || isProcessing}
             onClick={handleSend}
           >
-            <Send className="h-3.5 w-3.5" />
+            {isProcessing ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Send className="h-3.5 w-3.5" />
+            )}
           </Button>
         </div>
       </div>
@@ -439,46 +483,33 @@ export function GlobalChat() {
   );
 }
 
-// Detect if message is related to calendar operations
-function detectCalendarIntent(message: string): boolean {
-  const lower = message.toLowerCase();
-  const calendarKeywords = [
-    'task', 'tasks', 'todo',
-    'event', 'events', 'schedule',
-    'objective', 'objectives', 'goal', 'goals',
-    'weekly', 'monthly', 'daily',
-    'add', 'create', 'new',
-    'show', 'list', 'my',
-    'complete', 'done', 'finish',
-    'delete', 'remove',
-    'update', 'change', 'edit',
-    'calendar',
-  ];
-  
-  return calendarKeywords.some(keyword => lower.includes(keyword)) &&
-    (lower.includes('my') || lower.includes('add') || lower.includes('show') || 
-     lower.includes('list') || lower.includes('create') || lower.includes('schedule') ||
-     lower.includes('complete') || lower.includes('delete') || lower.includes('update'));
-}
+// ============================================================================
+// FALLBACK AI RESPONSE
+// ============================================================================
 
-// AI Response generator
 function getAIResponse(input: string, aspectId: string): string {
   const lowInput = input.toLowerCase();
   const aspectConfig = aspects.find(a => a.id === aspectId);
   
   if (lowInput.includes('progress') || lowInput.includes('how am i')) {
-    return `Based on your ${aspectConfig?.name || 'activity'} data, you're doing great! You've completed 72% of your weekly goals. Keep it up! 🎯`;
+    return `Based on your ${aspectConfig?.name || 'activity'} data, you're doing great! You've completed 72% of your weekly goals. Keep it up!`;
   }
   if (lowInput.includes('tip') || lowInput.includes('advice')) {
-    return `Here's a tip for ${aspectConfig?.name || 'you'}: Consistency beats intensity. Small daily actions compound into massive results over time. 💡`;
+    return `Here's a tip for ${aspectConfig?.name || 'you'}: Consistency beats intensity. Small daily actions compound into massive results over time.`;
   }
   if (lowInput.includes('today') || lowInput.includes('should')) {
-    return `For ${aspectConfig?.name || 'today'}, I'd suggest focusing on your top priority first. You're most productive in the morning! ⚡`;
+    return `For ${aspectConfig?.name || 'today'}, I'd suggest focusing on your top priority first. You're most productive in the morning!`;
   }
   if (lowInput.includes('help') || lowInput.includes('what can')) {
-    return `I can help you with ${aspectConfig?.name || 'everything'}! Ask me for tips, track progress, get recommendations, or just chat. What interests you?`;
+    return `I can help you manage your tasks, calendar, and objectives! Try asking me to:
+- Add a task for today
+- Show my weekly objectives
+- Create a monthly goal
+- Schedule a meeting
+- List my events for tomorrow
+
+What would you like to do?`;
   }
   
-  return `Got it! I'll help you optimize your ${aspectConfig?.name?.toLowerCase() || 'goals'}. Is there anything specific you'd like to focus on? 🤔`;
+  return `I can help you with that! If you want to manage your calendar, tasks, or objectives, just ask me directly. For example: "Add a task to review the project tomorrow" or "Show my tasks for today".`;
 }
-

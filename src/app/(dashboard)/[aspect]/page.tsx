@@ -1,11 +1,10 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { aspects } from '@/lib/aspects';
 import { ProactiveChat } from '@/components/ProactiveChat';
-import { AvatarWithRing } from '@/components/3d/AvatarWithRing';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,12 +12,8 @@ import { Progress } from '@/components/ui/progress';
 import { 
   ArrowLeft,
   Sparkles,
-  TrendingUp,
   Calendar,
-  ListChecks,
   Plus,
-  ChevronRight,
-  Folder,
   Heart,
   Plane,
   MapPin,
@@ -30,9 +25,6 @@ import {
   trainingStats,
   todaysWorkoutPlan,
   workoutsThisWeek,
-  weeklyMealPlan,
-  getTodaysMeal,
-  groceryList,
   financeStats,
   savingsGoals,
   recentTransactions,
@@ -41,8 +33,9 @@ import {
 } from '@/lib/miniAppData';
 import { useTrips, useBucketList, useVisitedPlaces } from '@/hooks/useTravel';
 import { FolderBrowser, businessFolders } from '@/components/FolderBrowser';
-import { Films } from '@/components/aspects/Films';
+import { TV } from '@/components/aspects/Films';
 import { Food } from '@/components/aspects/Food';
+import { Training } from '@/components/aspects/Training';
 import dynamic from 'next/dynamic';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
@@ -61,6 +54,11 @@ const InteractiveWorldMap = dynamic(
 import { AddTripDialog } from '@/components/travel/AddTripDialog';
 import { AddBucketListDialog } from '@/components/travel/AddBucketListDialog';
 import { AddVisitedPlaceDialog } from '@/components/travel/AddVisitedPlaceDialog';
+import { EditTripDialog } from '@/components/travel/EditTripDialog';
+import { EditBucketListDialog } from '@/components/travel/EditBucketListDialog';
+import { EditVisitedPlaceDialog } from '@/components/travel/EditVisitedPlaceDialog';
+import { ConvertBucketToTripDialog } from '@/components/travel/ConvertBucketToTripDialog';
+import { Edit } from 'lucide-react';
 import type { AspectType } from '@/types/database';
 import React from 'react';
 
@@ -158,9 +156,26 @@ export default function MiniAppPage() {
 
 // Aspect-specific dashboard content
 function MiniAppContent({ aspectId, theme, color }: { aspectId: AspectType; theme: 'dark' | 'light'; color: string }) {
-  const { trips: userTrips } = useTrips();
-  const { items: userBucketList } = useBucketList();
+  const { trips: userTrips, autoConvertCompleted } = useTrips();
+  const { items: userBucketList, convertToTrip } = useBucketList();
   const { places: userVisitedPlaces } = useVisitedPlaces();
+  
+  // Auto-convert completed trips on mount
+  React.useEffect(() => {
+    autoConvertCompleted();
+  }, [autoConvertCompleted]);
+  
+  // Travel-related state (must be at top level, not inside switch)
+  const [showTripDialog, setShowTripDialog] = React.useState(false);
+  const [showBucketDialog, setShowBucketDialog] = React.useState(false);
+  const [showPlaceDialog, setShowPlaceDialog] = React.useState(false);
+  const [editingTrip, setEditingTrip] = React.useState<typeof userTrips[0] | null>(null);
+  const [editingBucketItem, setEditingBucketItem] = React.useState<typeof userBucketList[0] | null>(null);
+  const [editingPlace, setEditingPlace] = React.useState<typeof userVisitedPlaces[0] | null>(null);
+  const [convertingBucketItem, setConvertingBucketItem] = React.useState<typeof userBucketList[0] | null>(null);
+  
+  // Memoized current date for friends calculation
+  const now = useMemo(() => new Date(), []);
   
   const cardBg = theme === 'light' ? 'bg-white/80 border-slate-200/50' : 'bg-white/5 border-white/10';
   const textPrimary = theme === 'light' ? 'text-slate-900' : 'text-white';
@@ -168,73 +183,7 @@ function MiniAppContent({ aspectId, theme, color }: { aspectId: AspectType; them
 
   switch (aspectId) {
     case 'training':
-      return (
-        <div className="space-y-4">
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-3">
-            <Card className={cn("border", cardBg)}>
-              <CardContent className="p-4 text-center">
-                <p className="text-3xl font-bold" style={{ color }}>{trainingStats.streak}</p>
-                <p className={cn("text-xs", textSecondary)}>Day Streak 🔥</p>
-              </CardContent>
-            </Card>
-            <Card className={cn("border", cardBg)}>
-              <CardContent className="p-4 text-center">
-                <p className="text-3xl font-bold" style={{ color }}>{trainingStats.weeklyCompleted}/{trainingStats.weeklyGoal}</p>
-                <p className={cn("text-xs", textSecondary)}>This Week</p>
-              </CardContent>
-            </Card>
-            <Card className={cn("border", cardBg)}>
-              <CardContent className="p-4 text-center">
-                <p className="text-3xl font-bold" style={{ color }}>{trainingStats.avgSleep}h</p>
-                <p className={cn("text-xs", textSecondary)}>Avg Sleep</p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Today's Plan */}
-          <Card className={cn("border", cardBg)}>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className={cn("font-semibold", textPrimary)}>Today's Workout</h3>
-                <Badge style={{ backgroundColor: `${color}20`, color }}>{todaysWorkoutPlan.estimatedDuration} min</Badge>
-              </div>
-              <p className={cn("text-sm mb-3", textSecondary)}>{todaysWorkoutPlan.name}</p>
-              <div className="space-y-2">
-                {todaysWorkoutPlan.exercises.slice(0, 3).map((ex, i) => (
-                  <div key={i} className={cn("flex justify-between text-sm", textSecondary)}>
-                    <span>{ex.name}</span>
-                    <span>{ex.sets} × {ex.reps}</span>
-                  </div>
-                ))}
-                {todaysWorkoutPlan.exercises.length > 3 && (
-                  <p className={cn("text-xs", textSecondary)}>+{todaysWorkoutPlan.exercises.length - 3} more...</p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Recent Workouts */}
-          <Card className={cn("border", cardBg)}>
-            <CardContent className="p-4">
-              <h3 className={cn("font-semibold mb-3", textPrimary)}>This Week</h3>
-              <div className="space-y-2">
-                {workoutsThisWeek.slice(-4).map((w) => (
-                  <div key={w.id} className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${color}20` }}>
-                      {w.completed ? '✓' : '○'}
-                    </div>
-                    <div className="flex-1">
-                      <p className={cn("text-sm", textPrimary)}>{w.name}</p>
-                      <p className={cn("text-xs", textSecondary)}>{w.duration} min</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      );
+      return <Training />;
 
     case 'food':
       return <Food />;
@@ -323,10 +272,10 @@ function MiniAppContent({ aspectId, theme, color }: { aspectId: AspectType; them
           {/* To Contact */}
           <Card className={cn("border", cardBg)}>
             <CardContent className="p-4">
-              <h3 className={cn("font-semibold mb-3", textPrimary)}>Haven't Talked In A While</h3>
+              <h3 className={cn("font-semibold mb-3", textPrimary)}>Haven&apos;t Talked In A While</h3>
               <div className="space-y-2">
                 {toContact.map(f => {
-                  const daysAgo = Math.floor((Date.now() - f.lastContact.getTime()) / (24 * 60 * 60 * 1000));
+                  const daysAgo = Math.floor((now.getTime() - f.lastContact.getTime()) / (24 * 60 * 60 * 1000));
                   return (
                     <div key={f.id} className="flex items-center justify-between">
                       <span className={textPrimary}>{f.name}</span>
@@ -370,10 +319,6 @@ function MiniAppContent({ aspectId, theme, color }: { aspectId: AspectType; them
         coordinates: { x: place.coordinates_x, y: place.coordinates_y },
         notes: place.notes || undefined,
       }));
-
-      const [showTripDialog, setShowTripDialog] = React.useState(false);
-      const [showBucketDialog, setShowBucketDialog] = React.useState(false);
-      const [showPlaceDialog, setShowPlaceDialog] = React.useState(false);
 
       return (
         <>
@@ -480,6 +425,15 @@ function MiniAppContent({ aspectId, theme, color }: { aspectId: AspectType; them
                               <Progress value={fundProgress} className="h-2" />
                             </div>
                           )}
+                          <Button
+                            onClick={() => setEditingTrip(trip)}
+                            size="sm"
+                            variant="outline"
+                            className="mt-2"
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit
+                          </Button>
                   </div>
                 </div>
                     </CardContent>
@@ -524,16 +478,39 @@ function MiniAppContent({ aspectId, theme, color }: { aspectId: AspectType; them
                             </p>
                           )}
                         </div>
-                        <Badge 
-                          variant="outline" 
-                          className="text-xs"
-                          style={{ 
-                            borderColor: item.priority === 'high' ? color : undefined,
-                            color: item.priority === 'high' ? color : undefined 
-                          }}
-                        >
-                          {item.priority}
-                        </Badge>
+                        <div className="flex flex-col gap-2">
+                          <Badge 
+                            variant="outline" 
+                            className="text-xs"
+                            style={{ 
+                              borderColor: item.priority === 'high' ? color : undefined,
+                              color: item.priority === 'high' ? color : undefined 
+                            }}
+                          >
+                            {item.priority}
+                          </Badge>
+                          <div className="flex gap-1">
+                            <Button
+                              onClick={() => setEditingBucketItem(item)}
+                              size="sm"
+                              variant="outline"
+                              className="flex-1"
+                            >
+                              <Edit className="h-4 w-4 mr-1" />
+                              Edit
+                            </Button>
+                            <Button
+                              onClick={() => setConvertingBucketItem(item)}
+                              size="sm"
+                              variant="default"
+                              className="flex-1"
+                              style={{ backgroundColor: color }}
+                            >
+                              <Plane className="h-4 w-4 mr-1" />
+                              Trip
+                            </Button>
+                          </div>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -545,9 +522,15 @@ function MiniAppContent({ aspectId, theme, color }: { aspectId: AspectType; them
           {/* World Map Tab */}
           <TabsContent value="map" className="space-y-4">
             <InteractiveWorldMap 
-              visitedPlaces={mapPlaces} 
+              visitedPlaces={mapPlaces}
+              trips={userTrips}
+              bucketList={userBucketList}
               color={color}
               onAddPlace={() => setShowPlaceDialog(true)}
+              onEditPlace={(place) => {
+                const fullPlace = userVisitedPlaces.find(p => p.id === place.id);
+                if (fullPlace) setEditingPlace(fullPlace);
+              }}
             />
           </TabsContent>
         </Tabs>
@@ -567,6 +550,30 @@ function MiniAppContent({ aspectId, theme, color }: { aspectId: AspectType; them
           open={showPlaceDialog}
           onOpenChange={setShowPlaceDialog}
           onSuccess={() => {}}
+        />
+        <EditTripDialog
+          open={!!editingTrip}
+          onOpenChange={(open) => !open && setEditingTrip(null)}
+          trip={editingTrip}
+          onSuccess={() => setEditingTrip(null)}
+        />
+        <EditBucketListDialog
+          open={!!editingBucketItem}
+          onOpenChange={(open) => !open && setEditingBucketItem(null)}
+          item={editingBucketItem}
+          onSuccess={() => setEditingBucketItem(null)}
+        />
+        <EditVisitedPlaceDialog
+          open={!!editingPlace}
+          onOpenChange={(open) => !open && setEditingPlace(null)}
+          place={editingPlace}
+          onSuccess={() => setEditingPlace(null)}
+        />
+        <ConvertBucketToTripDialog
+          open={!!convertingBucketItem}
+          onOpenChange={(open) => !open && setConvertingBucketItem(null)}
+          bucketItem={convertingBucketItem}
+          onConvert={convertToTrip}
         />
       </>
       );
@@ -591,7 +598,7 @@ function MiniAppContent({ aspectId, theme, color }: { aspectId: AspectType; them
       );
 
     case 'films':
-      return <Films />;
+      return <TV />;
 
     default:
       return (

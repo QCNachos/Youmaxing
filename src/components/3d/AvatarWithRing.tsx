@@ -169,20 +169,45 @@ interface AvatarWithRingProps {
 
 export function AvatarWithRing({ compact = false }: AvatarWithRingProps) {
   const router = useRouter();
-  const { currentAspect, nextAspect, prevAspect, setCurrentAspect, theme } = useAppStore();
+  const { currentAspect, setCurrentAspect, theme } = useAppStore();
   const [use3DAvatar, setUse3DAvatar] = useState(false); // Toggle for 3D character
   
   // Use centralized hook for carousel preferences
   const { getFilteredAspects, loading } = useCarouselApps();
   const carouselAspects = loading ? aspectsWithoutSettings : getFilteredAspects();
 
-  const currentAspectConfig = carouselAspects.find((a) => a.id === currentAspect) || carouselAspects[0];
-  const currentIndex = carouselAspects.findIndex((a) => a.id === currentAspect);
+  // Find current aspect in the filtered carousel apps
+  // If current aspect is not in carousel, default to first carousel app
+  const isInCarousel = carouselAspects.some((a) => a.id === currentAspect);
+  const effectiveAspect = isInCarousel ? currentAspect : carouselAspects[0]?.id || 'training';
+  
+  const currentAspectConfig = carouselAspects.find((a) => a.id === effectiveAspect) || carouselAspects[0];
+  const currentIndex = carouselAspects.findIndex((a) => a.id === effectiveAspect);
+
+  // Custom navigation that only cycles through carousel apps (not all aspects)
+  const nextAspect = () => {
+    if (carouselAspects.length === 0) return;
+    const nextIndex = (currentIndex + 1) % carouselAspects.length;
+    setCurrentAspect(carouselAspects[nextIndex].id);
+  };
+
+  const prevAspect = () => {
+    if (carouselAspects.length === 0) return;
+    const prevIndex = (currentIndex - 1 + carouselAspects.length) % carouselAspects.length;
+    setCurrentAspect(carouselAspects[prevIndex].id);
+  };
+
+  // If current aspect is not in carousel, switch to first carousel app
+  useEffect(() => {
+    if (!loading && carouselAspects.length > 0 && !isInCarousel) {
+      setCurrentAspect(carouselAspects[0].id);
+    }
+  }, [loading, carouselAspects, isInCarousel, setCurrentAspect]);
   const Icon = currentAspectConfig?.icon;
 
   // Navigate to the current aspect's mini-app page
   const goToMiniApp = () => {
-    router.push(`/${currentAspect}`);
+    router.push(`/${effectiveAspect}`);
   };
 
   // Calculate positions for visible icons in an elongated ellipse

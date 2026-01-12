@@ -3,6 +3,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { 
+  convertCompletedTripToVisitedPlace, 
+  autoConvertCompletedTrips,
+  convertBucketListToTrip 
+} from '@/lib/travelConversions';
 
 export interface Trip {
   id: string;
@@ -131,6 +136,17 @@ export function useTrips() {
     setTrips((prev) => prev.filter((t) => t.id !== id));
   };
 
+  const convertToVisitedPlace = async (tripId: string) => {
+    await convertCompletedTripToVisitedPlace(tripId);
+    await fetchTrips();
+  };
+
+  const autoConvertCompleted = async () => {
+    if (!user) return;
+    await autoConvertCompletedTrips(user.id);
+    await fetchTrips();
+  };
+
   return {
     trips,
     loading,
@@ -138,6 +154,8 @@ export function useTrips() {
     addTrip,
     updateTrip,
     deleteTrip,
+    convertToVisitedPlace,
+    autoConvertCompleted,
     refetch: fetchTrips,
   };
 }
@@ -227,6 +245,17 @@ export function useBucketList() {
     setItems((prev) => prev.filter((item) => item.id !== id));
   };
 
+  const convertToTrip = async (bucketListId: string, tripData: {
+    start_date?: string;
+    end_date?: string;
+    budget?: number;
+    current_saved?: number;
+    notes?: string;
+  }) => {
+    await convertBucketListToTrip(bucketListId, tripData);
+    await fetchItems();
+  };
+
   return {
     items,
     loading,
@@ -234,6 +263,7 @@ export function useBucketList() {
     addItem,
     updateItem,
     deleteItem,
+    convertToTrip,
     refetch: fetchItems,
   };
 }

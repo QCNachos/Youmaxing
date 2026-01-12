@@ -383,3 +383,4 @@ GRANT INSERT ON ai_recommendations TO service_role;
 
 
 
+

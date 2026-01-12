@@ -92,7 +92,7 @@ function getWelcomeMessage(aspectId: string, aspectName: string): ProactiveMessa
     family: `👨‍👩‍👧‍👦 **Family** - Stay connected with the people who matter.\n\nAny family events or calls to plan?`,
     business: `💼 **Business** - Let's crush your goals today.\n\nWhat's the priority?`,
     sports: `🏆 **Sports** - Track your activities and find new ones.\n\nWhat would you like to do?`,
-    films: `🎬 **Films & Series** - What's next on your watchlist?\n\nNeed recommendations?`,
+    films: `🎬 **TV** - What's next on your watchlist?\n\nNeed recommendations?`,
     events: `📅 **Events** - Stay on top of what's happening.\n\nWhat can I help with?`,
   };
 

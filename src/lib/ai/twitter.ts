@@ -286,3 +286,4 @@ export function toTwitterTrendRecord(analysis: TrendAnalysis): Omit<TwitterTrend
 
 
 
+

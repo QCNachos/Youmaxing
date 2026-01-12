@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import type { SportsActivity } from '@/types/database';
 import { format } from 'date-fns';
+import { WeightHeightTracker } from '@/components/WeightHeightTracker';
 
 const mockActivities: SportsActivity[] = [
   {
@@ -103,10 +104,11 @@ export function Sports() {
       addNewLabel="Log Activity"
     >
       <Tabs defaultValue="activities" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="activities">Activities</TabsTrigger>
           <TabsTrigger value="events">Events</TabsTrigger>
           <TabsTrigger value="stats">Stats</TabsTrigger>
+          <TabsTrigger value="body">Body Metrics</TabsTrigger>
         </TabsList>
 
         <TabsContent value="activities" className="mt-6">
@@ -270,6 +272,10 @@ export function Sports() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        <TabsContent value="body" className="mt-6">
+          <WeightHeightTracker />
         </TabsContent>
       </Tabs>
 

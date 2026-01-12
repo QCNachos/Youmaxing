@@ -17,6 +17,7 @@ interface AspectLayoutProps {
   aiInsight?: string;
   onAddNew?: () => void;
   addNewLabel?: string;
+  hideHeader?: boolean;
 }
 
 export function AspectLayout({
@@ -26,6 +27,7 @@ export function AspectLayout({
   aiInsight,
   onAddNew,
   addNewLabel = 'Add New',
+  hideHeader = false,
 }: AspectLayoutProps) {
   const { theme } = useAppStore();
   const aspect = aspects.find((a) => a.id === aspectId);
@@ -36,30 +38,43 @@ export function AspectLayout({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div
-            className="w-14 h-14 rounded-2xl flex items-center justify-center"
-            style={{ backgroundColor: `${aspect.color}20`, color: aspect.color }}
-          >
-            <Icon className="h-7 w-7" />
+      {!hideHeader ? (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div
+              className="w-14 h-14 rounded-2xl flex items-center justify-center"
+              style={{ backgroundColor: `${aspect.color}20`, color: aspect.color }}
+            >
+              <Icon className="h-7 w-7" />
+            </div>
+            <div>
+              <h1 className={cn(
+                "text-2xl font-bold",
+                theme === 'light' ? "text-slate-900" : "text-white"
+              )}>
+                {aspect.name}
+              </h1>
+              <p className={cn(
+                "text-sm",
+                theme === 'light' ? "text-slate-500" : "text-white/60"
+              )}>
+                {aspect.description}
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className={cn(
-              "text-2xl font-bold",
-              theme === 'light' ? "text-slate-900" : "text-white"
-            )}>
-              {aspect.name}
-            </h1>
-            <p className={cn(
-              "text-sm",
-              theme === 'light' ? "text-slate-500" : "text-white/60"
-            )}>
-              {aspect.description}
-            </p>
-          </div>
+          {onAddNew && (
+            <Button
+              className="bg-gradient-to-r from-violet-600 to-pink-600 hover:from-violet-700 hover:to-pink-700"
+              onClick={onAddNew}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              {addNewLabel}
+            </Button>
+          )}
         </div>
-        {onAddNew && (
+      ) : onAddNew && (
+        /* When header is hidden, just show the add button aligned right */
+        <div className="flex justify-end">
           <Button
             className="bg-gradient-to-r from-violet-600 to-pink-600 hover:from-violet-700 hover:to-pink-700"
             onClick={onAddNew}
@@ -67,8 +82,8 @@ export function AspectLayout({
             <Plus className="h-4 w-4 mr-2" />
             {addNewLabel}
           </Button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Stats Row */}
       {stats && stats.length > 0 && (

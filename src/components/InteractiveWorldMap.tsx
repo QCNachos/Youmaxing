@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
-import { MapPin, Plus, Star } from 'lucide-react';
+import { MapPin, Plus, Star, Edit } from 'lucide-react';
 
 // Fix for default marker icons in React-Leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -32,9 +32,11 @@ interface VisitedPlace {
 
 interface InteractiveWorldMapProps {
   visitedPlaces: VisitedPlace[];
+  trips?: any[];
+  bucketList?: any[];
   color?: string;
   onAddPlace?: () => void;
-  onPlaceClick?: (place: VisitedPlace) => void;
+  onEditPlace?: (place: VisitedPlace) => void;
   clickToAdd?: boolean;
 }
 
@@ -68,14 +70,17 @@ function getLatLng(coordinates: { x: number; y: number }): [number, number] {
 
 export function InteractiveWorldMap({
   visitedPlaces,
+  trips = [],
+  bucketList = [],
   color = '#06B6D4',
   onAddPlace,
-  onPlaceClick,
+  onEditPlace,
   clickToAdd = false,
 }: InteractiveWorldMapProps) {
   const { theme } = useAppStore();
   const [selectedPlace, setSelectedPlace] = useState<VisitedPlace | null>(null);
   const [mounted, setMounted] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'trips' | 'bucket' | 'visited'>('all');
 
   const textPrimary = theme === 'light' ? 'text-slate-900' : 'text-white';
   const textSecondary = theme === 'light' ? 'text-slate-500' : 'text-white/60';
@@ -95,8 +100,10 @@ export function InteractiveWorldMap({
 
   const handlePlaceClick = (place: VisitedPlace) => {
     setSelectedPlace(place);
-    onPlaceClick?.(place);
   };
+
+  // Filter places based on selected filter
+  const filteredPlaces = visitedPlaces;
 
   // Custom marker icon - smaller and better positioned
   const createCustomIcon = (emoji: string) => {
@@ -139,23 +146,58 @@ export function InteractiveWorldMap({
 
   return (
     <div className="space-y-4">
-      {/* Map Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <MapPin className="h-5 w-5" style={{ color }} />
-          <h3 className={cn("font-semibold", textPrimary)}>
-            Interactive World Map
-          </h3>
-          <Badge variant="secondary" style={{ backgroundColor: `${color}20`, color }}>
-            {visitedPlaces.length} {visitedPlaces.length === 1 ? 'place' : 'places'}
-          </Badge>
+      {/* Map Header with Filters */}
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <MapPin className="h-5 w-5" style={{ color }} />
+            <h3 className={cn("font-semibold", textPrimary)}>
+              Interactive World Map
+            </h3>
+          </div>
+          {onAddPlace && (
+            <Button onClick={onAddPlace} size="sm" variant="outline">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Place
+            </Button>
+          )}
         </div>
-        {onAddPlace && (
-          <Button onClick={onAddPlace} size="sm" variant="outline">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Place
+        
+        {/* Filter Buttons */}
+        <div className="flex gap-2 flex-wrap">
+          <Button
+            size="sm"
+            variant={filter === 'all' ? 'default' : 'outline'}
+            onClick={() => setFilter('all')}
+            style={filter === 'all' ? { backgroundColor: color } : {}}
+          >
+            All ({visitedPlaces.length})
           </Button>
-        )}
+          <Button
+            size="sm"
+            variant={filter === 'trips' ? 'default' : 'outline'}
+            onClick={() => setFilter('trips')}
+            style={filter === 'trips' ? { backgroundColor: color } : {}}
+          >
+            My Trips ({trips.length})
+          </Button>
+          <Button
+            size="sm"
+            variant={filter === 'bucket' ? 'default' : 'outline'}
+            onClick={() => setFilter('bucket')}
+            style={filter === 'bucket' ? { backgroundColor: color } : {}}
+          >
+            Bucket List ({bucketList.length})
+          </Button>
+          <Button
+            size="sm"
+            variant={filter === 'visited' ? 'default' : 'outline'}
+            onClick={() => setFilter('visited')}
+            style={filter === 'visited' ? { backgroundColor: color } : {}}
+          >
+            Visited Places ({visitedPlaces.length})
+          </Button>
+        </div>
       </div>
 
       {/* Map Container */}
@@ -181,7 +223,7 @@ export function InteractiveWorldMap({
           {clickToAdd && <MapClickHandler />}
 
           {/* Place markers */}
-          {visitedPlaces.map((place) => {
+          {filteredPlaces.map((place) => {
             const [lat, lng] = getLatLng(place.coordinates);
             return (
               <Marker
@@ -193,10 +235,10 @@ export function InteractiveWorldMap({
                 }}
               >
                 <Popup className="custom-popup">
-                  <div className="p-2">
-                    <div className="flex items-center gap-2 mb-1">
+                  <div className="p-2 min-w-[200px]">
+                    <div className="flex items-center gap-2 mb-2">
                       <span className="text-2xl">{place.emoji}</span>
-                      <div>
+                      <div className="flex-1">
                         <p className="font-semibold">
                           {place.city ? `${place.city}, ${place.country}` : place.country}
                         </p>
@@ -204,14 +246,28 @@ export function InteractiveWorldMap({
                       </div>
                     </div>
                     {place.rating && (
-                      <div className="flex gap-1 mt-2">
+                      <div className="flex gap-1 mb-2">
                         {Array.from({ length: place.rating }).map((_, i) => (
                           <Star key={i} className="h-3 w-3 fill-yellow-400 text-yellow-400" />
                         ))}
                       </div>
                     )}
                     {place.notes && (
-                      <p className="text-sm text-gray-600 mt-2">{place.notes}</p>
+                      <p className="text-sm text-gray-600 mb-2">{place.notes}</p>
+                    )}
+                    {onEditPlace && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEditPlace(place);
+                        }}
+                      >
+                        <Edit className="h-3 w-3 mr-2" />
+                        Edit
+                      </Button>
                     )}
                   </div>
                 </Popup>
@@ -283,26 +339,43 @@ export function InteractiveWorldMap({
       {visitedPlaces.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
           {visitedPlaces.map((place) => (
-            <button
+            <div
               key={place.id}
-              onClick={() => handlePlaceClick(place)}
               className={cn(
-                "flex items-center gap-2 p-3 rounded-lg transition-colors text-left",
+                "relative flex items-center gap-2 p-3 rounded-lg transition-colors border group",
                 selectedPlace?.id === place.id
-                  ? 'bg-primary/10 border-2 border-primary'
+                  ? 'bg-primary/10 border-primary'
                   : theme === 'light'
-                  ? 'bg-slate-50 hover:bg-slate-100 border border-slate-200'
-                  : 'bg-white/5 hover:bg-white/10 border border-white/10'
+                  ? 'bg-slate-50 hover:bg-slate-100 border-slate-200'
+                  : 'bg-white/5 hover:bg-white/10 border-white/10'
               )}
             >
-              <span className="text-2xl">{place.emoji}</span>
-              <div className="flex-1 min-w-0">
-                <p className={cn("text-sm font-medium truncate", textPrimary)}>
-                  {place.city || place.country}
-                </p>
-                <p className={cn("text-xs", textSecondary)}>{place.year}</p>
-              </div>
-            </button>
+              <button
+                onClick={() => handlePlaceClick(place)}
+                className="flex items-center gap-2 flex-1 min-w-0 text-left"
+              >
+                <span className="text-2xl">{place.emoji}</span>
+                <div className="flex-1 min-w-0">
+                  <p className={cn("text-sm font-medium truncate", textPrimary)}>
+                    {place.city || place.country}
+                  </p>
+                  <p className={cn("text-xs", textSecondary)}>{place.year}</p>
+                </div>
+              </button>
+              {onEditPlace && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onEditPlace(place);
+                  }}
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           ))}
         </div>
       )}

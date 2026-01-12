@@ -266,7 +266,7 @@ export function ExpandedObjectivesDialogEnhanced({
   return (
     <>
       <Dialog open={open && !formType} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl max-h-[85vh] p-0">
+        <DialogContent className="max-w-5xl max-h-[90vh] p-0">
           <DialogHeader className="px-6 pt-6 pb-4 border-b">
             <div className="flex items-center justify-between">
               <div>
@@ -335,7 +335,7 @@ export function ExpandedObjectivesDialogEnhanced({
                 
                 <Progress value={taskProgress} className="h-2 mb-4" />
 
-                <ScrollArea className="h-[400px] pr-4">
+                <ScrollArea className="h-[500px] pr-4">
                   {tasks.length === 0 ? (
                     <div className="text-center py-12 text-muted-foreground">
                       <CheckCircle2 className="h-12 w-12 mx-auto mb-3 opacity-50" />
@@ -449,7 +449,7 @@ export function ExpandedObjectivesDialogEnhanced({
                   </Button>
                 </div>
 
-                <ScrollArea className="h-[450px] pr-4">
+                <ScrollArea className="h-[550px] pr-4">
                   {weeklyObjectives.length === 0 ? (
                     <div className="text-center py-12 text-muted-foreground">
                       <TrendingUp className="h-12 w-12 mx-auto mb-3 opacity-50" />
@@ -547,7 +547,7 @@ export function ExpandedObjectivesDialogEnhanced({
                   </Button>
                 </div>
 
-                <ScrollArea className="h-[450px] pr-4">
+                <ScrollArea className="h-[550px] pr-4">
                   {monthlyObjectives.length === 0 ? (
                     <div className="text-center py-12 text-muted-foreground">
                       <Calendar className="h-12 w-12 mx-auto mb-3 opacity-50" />

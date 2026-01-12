@@ -1,0 +1,382 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { createClient } from '@/lib/supabase/client';
+import type { Recipe, RecipeIngredient } from './useRecipes';
+
+export interface GroceryItem {
+  id: string;
+  name: string;
+  quantity: number;
+  unit: string;
+  category?: string;
+  checked: boolean;
+  recipeId?: string;
+  recipeName?: string;
+}
+
+export interface GroceryList {
+  id: string;
+  user_id: string;
+  name: string;
+  items: GroceryItem[];
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PantryItem {
+  id: string;
+  user_id: string;
+  name: string;
+  category: string | null;
+  quantity: number;
+  unit: string | null;
+  expiration_date: string | null;
+  location: 'pantry' | 'fridge' | 'freezer';
+  image_url: string | null;
+  barcode: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export function useGrocery() {
+  const [groceryList, setGroceryList] = useState<GroceryList | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchActiveGroceryList = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        setGroceryList(null);
+        return;
+      }
+
+      const { data, error: fetchError } = await supabase
+        .from('grocery_lists')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        throw fetchError;
+      }
+      
+      setGroceryList(data || null);
+    } catch (err) {
+      console.error('Error fetching grocery list:', err);
+      setError('Failed to load grocery list');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchActiveGroceryList();
+  }, [fetchActiveGroceryList]);
+
+  const createGroceryList = useCallback(async (name: string = 'Shopping List'): Promise<GroceryList | null> => {
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) throw new Error('Not authenticated');
+
+      // Deactivate existing active lists
+      await supabase
+        .from('grocery_lists')
+        .update({ is_active: false })
+        .eq('user_id', user.id)
+        .eq('is_active', true);
+
+      const { data, error } = await supabase
+        .from('grocery_lists')
+        .insert({
+          user_id: user.id,
+          name,
+          items: [],
+          is_active: true,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      setGroceryList(data);
+      return data;
+    } catch (err) {
+      console.error('Error creating grocery list:', err);
+      setError('Failed to create grocery list');
+      return null;
+    }
+  }, []);
+
+  const addItem = useCallback(async (item: Omit<GroceryItem, 'id' | 'checked'>): Promise<boolean> => {
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) throw new Error('Not authenticated');
+
+      let currentList = groceryList;
+      
+      // Create list if none exists
+      if (!currentList) {
+        currentList = await createGroceryList();
+        if (!currentList) return false;
+      }
+
+      const newItem: GroceryItem = {
+        ...item,
+        id: crypto.randomUUID(),
+        checked: false,
+      };
+
+      const updatedItems = [...currentList.items, newItem];
+
+      const { data, error } = await supabase
+        .from('grocery_lists')
+        .update({
+          items: updatedItems,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', currentList.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      setGroceryList(data);
+      return true;
+    } catch (err) {
+      console.error('Error adding item:', err);
+      setError('Failed to add item');
+      return false;
+    }
+  }, [groceryList, createGroceryList]);
+
+  const removeItem = useCallback(async (itemId: string): Promise<boolean> => {
+    if (!groceryList) return false;
+
+    try {
+      const supabase = createClient();
+      
+      const updatedItems = groceryList.items.filter(i => i.id !== itemId);
+
+      const { data, error } = await supabase
+        .from('grocery_lists')
+        .update({
+          items: updatedItems,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', groceryList.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      setGroceryList(data);
+      return true;
+    } catch (err) {
+      console.error('Error removing item:', err);
+      setError('Failed to remove item');
+      return false;
+    }
+  }, [groceryList]);
+
+  const toggleItem = useCallback(async (itemId: string): Promise<boolean> => {
+    if (!groceryList) return false;
+
+    try {
+      const supabase = createClient();
+      
+      const updatedItems = groceryList.items.map(i => 
+        i.id === itemId ? { ...i, checked: !i.checked } : i
+      );
+
+      const { data, error } = await supabase
+        .from('grocery_lists')
+        .update({
+          items: updatedItems,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', groceryList.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      setGroceryList(data);
+      return true;
+    } catch (err) {
+      console.error('Error toggling item:', err);
+      return false;
+    }
+  }, [groceryList]);
+
+  const addFromRecipes = useCallback(async (recipes: Recipe[], inventory: PantryItem[] = []): Promise<boolean> => {
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) throw new Error('Not authenticated');
+
+      let currentList = groceryList;
+      
+      if (!currentList) {
+        currentList = await createGroceryList();
+        if (!currentList) return false;
+      }
+
+      // Collect all ingredients from recipes
+      const allIngredients: GroceryItem[] = [];
+      
+      for (const recipe of recipes) {
+        for (const ingredient of recipe.ingredients) {
+          // Check if we have it in inventory
+          const inInventory = inventory.find(
+            p => p.name.toLowerCase() === ingredient.name.toLowerCase()
+          );
+          
+          // Calculate needed quantity
+          let neededQuantity = ingredient.quantity;
+          if (inInventory && inInventory.quantity > 0) {
+            neededQuantity = Math.max(0, ingredient.quantity - inInventory.quantity);
+          }
+          
+          if (neededQuantity > 0) {
+            // Check if already in list
+            const existingIndex = allIngredients.findIndex(
+              i => i.name.toLowerCase() === ingredient.name.toLowerCase() && i.unit === ingredient.unit
+            );
+            
+            if (existingIndex >= 0) {
+              allIngredients[existingIndex].quantity += neededQuantity;
+            } else {
+              allIngredients.push({
+                id: crypto.randomUUID(),
+                name: ingredient.name,
+                quantity: neededQuantity,
+                unit: ingredient.unit,
+                checked: false,
+                recipeId: recipe.id,
+                recipeName: recipe.name,
+              });
+            }
+          }
+        }
+      }
+
+      // Merge with existing items
+      const existingItems = currentList.items;
+      for (const newItem of allIngredients) {
+        const existingIndex = existingItems.findIndex(
+          i => i.name.toLowerCase() === newItem.name.toLowerCase() && i.unit === newItem.unit
+        );
+        
+        if (existingIndex >= 0) {
+          existingItems[existingIndex].quantity += newItem.quantity;
+        } else {
+          existingItems.push(newItem);
+        }
+      }
+
+      const { data, error } = await supabase
+        .from('grocery_lists')
+        .update({
+          items: existingItems,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', currentList.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      setGroceryList(data);
+      return true;
+    } catch (err) {
+      console.error('Error adding from recipes:', err);
+      setError('Failed to add items from recipes');
+      return false;
+    }
+  }, [groceryList, createGroceryList]);
+
+  const clearChecked = useCallback(async (): Promise<boolean> => {
+    if (!groceryList) return false;
+
+    try {
+      const supabase = createClient();
+      
+      const updatedItems = groceryList.items.filter(i => !i.checked);
+
+      const { data, error } = await supabase
+        .from('grocery_lists')
+        .update({
+          items: updatedItems,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', groceryList.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      setGroceryList(data);
+      return true;
+    } catch (err) {
+      console.error('Error clearing checked items:', err);
+      return false;
+    }
+  }, [groceryList]);
+
+  const clearAll = useCallback(async (): Promise<boolean> => {
+    if (!groceryList) return false;
+
+    try {
+      const supabase = createClient();
+
+      const { data, error } = await supabase
+        .from('grocery_lists')
+        .update({
+          items: [],
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', groceryList.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      setGroceryList(data);
+      return true;
+    } catch (err) {
+      console.error('Error clearing list:', err);
+      return false;
+    }
+  }, [groceryList]);
+
+  return {
+    groceryList,
+    loading,
+    error,
+    fetchActiveGroceryList,
+    createGroceryList,
+    addItem,
+    removeItem,
+    toggleItem,
+    addFromRecipes,
+    clearChecked,
+    clearAll,
+  };
+}
+

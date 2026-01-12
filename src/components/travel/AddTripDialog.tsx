@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { Plus, Heart, Clock, Calendar, CheckCircle } from 'lucide-react';
 import { useTrips, type Trip } from '@/hooks/useTravel';
 import { toast } from 'sonner';
+import { CountrySelector } from './CountrySelector';
 
 interface AddTripDialogProps {
   open: boolean;
@@ -84,14 +85,22 @@ export function AddTripDialog({ open, onOpenChange, onSuccess, initialData }: Ad
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label>Destination *</Label>
-            <Input
-              placeholder="Where to?"
-              value={formData.destination}
-              onChange={(e) => setFormData({ ...formData, destination: e.target.value })}
-              required
-            />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Country *</Label>
+              <CountrySelector
+                value={formData.destination}
+                onChange={(destination) => setFormData({ ...formData, destination })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>City/State (optional)</Label>
+              <Input
+                placeholder="e.g., Paris, California"
+                value={formData.notes || ''}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              />
+            </div>
           </div>
 
           <div className="space-y-2">

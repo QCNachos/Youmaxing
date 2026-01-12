@@ -9,6 +9,7 @@ import { User, Loader2, Upload } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAppStore } from '@/lib/store';
 import { toast } from 'sonner';
+import { WeightHeightTracker } from '@/components/WeightHeightTracker';
 
 interface ProfileSettingsProps {
   userId: string;
@@ -213,6 +214,14 @@ export function ProfileSettings({ userId }: ProfileSettingsProps) {
         </CardContent>
       </Card>
 
+      <div>
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold mb-1">Weight & Height</h2>
+          <p className="text-sm text-muted-foreground">Track your weight and height over time</p>
+        </div>
+        <WeightHeightTracker userId={userId} />
+      </div>
+
       <Card className="border-destructive/50">
         <CardHeader>
           <CardTitle className="text-destructive">Danger Zone</CardTitle>
@@ -230,5 +239,6 @@ export function ProfileSettings({ userId }: ProfileSettingsProps) {
     </div>
   );
 }
+
 
 

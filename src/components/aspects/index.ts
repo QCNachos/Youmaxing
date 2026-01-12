@@ -1,7 +1,8 @@
 export { Training } from './Training';
 export { Food } from './Food';
 export { Sports } from './Sports';
-export { Films } from './Films';
+export { TV } from './Films';
+export { TV as Films } from './Films'; // Backward compatibility alias
 export { Finance } from './Finance';
 export { Business } from './Business';
 export { Travel } from './Travel';

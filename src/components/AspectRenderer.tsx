@@ -5,7 +5,7 @@ import {
   Training,
   Food,
   Sports,
-  Films,
+  TV as Films,
   Finance,
   Business,
   Travel,
@@ -40,6 +40,7 @@ export function AspectRenderer() {
   
   return <Component />;
 }
+
 
 
 

@@ -11,6 +11,7 @@ import { Plus, MapPin, Star, Loader2 } from 'lucide-react';
 import { useVisitedPlaces } from '@/hooks/useTravel';
 import { toast } from 'sonner';
 import { geocodeLocation } from '@/lib/geocoding';
+import { CountrySelector, getFlagFromCountryName } from './CountrySelector';
 
 interface AddVisitedPlaceDialogProps {
   open: boolean;
@@ -33,19 +34,7 @@ export function AddVisitedPlaceDialog({ open, onOpenChange, onSuccess }: AddVisi
     rating: 5,
   });
 
-  const [mapClick, setMapClick] = useState<{ x: number; y: number } | null>(null);
-
-  const textPrimary = theme === 'light' ? 'text-slate-900' : 'text-white';
   const textSecondary = theme === 'light' ? 'text-slate-500' : 'text-white/60';
-
-  const handleMapClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
-    
-    setMapClick({ x, y });
-    setFormData({ ...formData, coordinates_x: x, coordinates_y: y });
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,7 +84,6 @@ export function AddVisitedPlaceDialog({ open, onOpenChange, onSuccess }: AddVisi
         notes: '',
         rating: 5,
       });
-      setMapClick(null);
     } catch (error) {
       console.error('Error adding place:', error);
       toast.dismiss();
@@ -104,8 +92,6 @@ export function AddVisitedPlaceDialog({ open, onOpenChange, onSuccess }: AddVisi
       setSubmitting(false);
     }
   };
-
-  const popularEmojis = ['🌍', '🇫🇷', '🇺🇸', '🇬🇧', '🇪🇸', '🇮🇹', '🇯🇵', '🇨🇳', '🇮🇩', '🇹🇭', '🇦🇺', '🇧🇷', '🇲🇽', '🇨🇦'];
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -119,17 +105,19 @@ export function AddVisitedPlaceDialog({ open, onOpenChange, onSuccess }: AddVisi
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Country *</Label>
-              <Input
-                placeholder="e.g., France"
+              <CountrySelector
                 value={formData.country}
-                onChange={(e) => setFormData({ ...formData, country: e.target.value })}
-                required
+                onChange={(country) => {
+                  // Auto-set emoji based on country
+                  const emoji = getFlagFromCountryName(country);
+                  setFormData({ ...formData, country, emoji });
+                }}
               />
             </div>
             <div className="space-y-2">
-              <Label>City (optional)</Label>
+              <Label>City/State (optional)</Label>
               <Input
-                placeholder="e.g., Paris"
+                placeholder="e.g., Paris, California"
                 value={formData.city}
                 onChange={(e) => setFormData({ ...formData, city: e.target.value })}
               />
@@ -173,36 +161,6 @@ export function AddVisitedPlaceDialog({ open, onOpenChange, onSuccess }: AddVisi
             </div>
           </div>
 
-          {/* Emoji Selector */}
-          <div className="space-y-2">
-            <Label>Flag/Emoji</Label>
-            <div className="flex flex-wrap gap-2">
-              {popularEmojis.map((emoji) => (
-                <button
-                  key={emoji}
-                  type="button"
-                  onClick={() => setFormData({ ...formData, emoji })}
-                  className={cn(
-                    'text-2xl p-2 rounded-lg transition-all',
-                    formData.emoji === emoji
-                      ? 'bg-primary/20 ring-2 ring-primary'
-                      : 'hover:bg-gray-100 dark:hover:bg-gray-800'
-                  )}
-                >
-                  {emoji}
-                </button>
-              ))}
-              <Input
-                type="text"
-                placeholder="Or type emoji"
-                value={formData.emoji || ''}
-                onChange={(e) => setFormData({ ...formData, emoji: e.target.value })}
-                className="w-20 text-center text-xl"
-                maxLength={10}
-              />
-            </div>
-          </div>
-
           {/* Note about geocoding */}
           <div className="space-y-2">
             <Label className="flex items-center gap-2">
@@ -210,8 +168,8 @@ export function AddVisitedPlaceDialog({ open, onOpenChange, onSuccess }: AddVisi
               Auto-Geocoding
             </Label>
             <p className={cn("text-xs", textSecondary)}>
-              📍 Coordinates are automatically found using OpenStreetMap's geocoding service.
-              Just enter the country and city - we'll find it on the map!
+              📍 Coordinates are automatically found using OpenStreetMap&apos;s geocoding service.
+              Just enter the country and city - we&apos;ll find it on the map!
             </p>
           </div>
 

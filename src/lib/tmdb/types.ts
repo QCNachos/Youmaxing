@@ -136,6 +136,40 @@ export const TMDB_GENRES: Record<number, string> = {
   10768: 'War & Politics',
 };
 
+// Simplified genres (10 categories max) - maps TMDB genres to core categories
+export const SIMPLIFIED_GENRES: Record<string, string[]> = {
+  'Action': ['Action', 'Adventure', 'Action & Adventure'],
+  'Comedy': ['Comedy'],
+  'Drama': ['Drama'],
+  'Sci-Fi': ['Science Fiction', 'Sci-Fi & Fantasy'],
+  'Fantasy': ['Fantasy'],
+  'Horror': ['Horror'],
+  'Thriller': ['Thriller', 'Crime', 'Mystery'],
+  'Documentary': ['Documentary'],
+  'Animation': ['Animation'],
+  'Romance': ['Romance'],
+};
+
+// Get simplified genre from TMDB genre
+export function getSimplifiedGenre(tmdbGenre: string): string | null {
+  for (const [simplified, originals] of Object.entries(SIMPLIFIED_GENRES)) {
+    if (originals.includes(tmdbGenre)) {
+      return simplified;
+    }
+  }
+  return null;
+}
+
+// Get all simplified genres for a list of TMDB genres
+export function getSimplifiedGenres(tmdbGenres: string[]): string[] {
+  const simplified = new Set<string>();
+  for (const genre of tmdbGenres) {
+    const simpl = getSimplifiedGenre(genre);
+    if (simpl) simplified.add(simpl);
+  }
+  return Array.from(simplified);
+}
+
 // Known franchise mappings based on collection or keywords
 export const FRANCHISE_MAPPINGS: Record<string, string> = {
   // Movies
@@ -161,6 +195,7 @@ export const FRANCHISE_MAPPINGS: Record<string, string> = {
   'Vikings': 'vikings',
   'Vikings: Valhalla': 'vikings',
 };
+
 
 
 

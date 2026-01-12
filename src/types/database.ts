@@ -1761,13 +1761,124 @@ export type ListVisibility = 'private' | 'friends' | 'public';
 export type AppCategory = 'productivity' | 'health' | 'finance' | 'social' | 'entertainment' | 'lifestyle';
 export type PointTransactionType = 'earn' | 'spend' | 'tip_received' | 'tip_sent' | 'daily_login' | 'rate_item' | 'share_list' | 'receive_tip' | 'give_tip' | 'unlock_feature' | 'add_friend' | 'complete_watchlist' | 'signup_bonus' | 'referral';
 
+// Training-specific types
+export type TrainingType = 'strength' | 'cardio' | 'flexibility' | 'hiit' | 'sports' | 'other';
+export type TrainingIntensity = 'low' | 'medium' | 'high';
+export type BodyPart = 'chest' | 'back' | 'shoulders' | 'arms' | 'core' | 'legs' | 'full_body';
+export type ResourceType = 'youtube' | 'instagram' | 'tiktok' | 'article' | 'image' | 'other';
+export type DistanceUnit = 'km' | 'miles';
+
+// Enhanced Training Log interface
+export interface TrainingLog {
+  id: string;
+  user_id: string;
+  title: string;
+  type: TrainingType;
+  duration_minutes: number | null; // Legacy, use duration_seconds instead
+  duration_seconds: number | null; // New: precise duration in seconds
+  intensity: TrainingIntensity;
+  notes: string | null;
+  body_parts: BodyPart[];
+  distance_km: number | null;
+  calories_burned: number | null;
+  heart_rate_avg: number | null;
+  heart_rate_max: number | null;
+  workout_date: string;
+  completed_at: string | null;
+  created_at: string;
+  // Joined data
+  exercises?: WorkoutExercise[];
+}
+
+// Workout Exercise (for strength training)
+export interface WorkoutExercise {
+  id: string;
+  training_log_id: string;
+  user_id: string;
+  exercise_name: string;
+  sets: number | null;
+  reps: number | null;
+  weight_kg: number | null;
+  notes: string | null;
+  order_index: number;
+  created_at: string;
+}
+
+// Sleep Log
+export interface SleepLog {
+  id: string;
+  user_id: string;
+  sleep_date: string;
+  hours_slept: number;
+  quality_rating: number | null; // 1-5
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Training Resource (saved videos/links)
+export interface TrainingResource {
+  id: string;
+  user_id: string;
+  title: string;
+  url: string;
+  resource_type: ResourceType;
+  training_type: TrainingType | null;
+  body_parts: BodyPart[];
+  thumbnail_url: string | null;
+  notes: string | null;
+  is_favorite: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// Workout Template
+export interface WorkoutTemplate {
+  id: string;
+  user_id: string | null;
+  title: string;
+  description: string | null;
+  training_type: TrainingType;
+  body_parts: BodyPart[];
+  duration_minutes: number | null;
+  intensity: TrainingIntensity;
+  exercises: WorkoutTemplateExercise[];
+  is_ai_generated: boolean;
+  is_public: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// Exercise within a template
+export interface WorkoutTemplateExercise {
+  name: string;
+  sets?: number;
+  reps?: number;
+  duration_seconds?: number;
+  rest_seconds?: number;
+  notes?: string;
+}
+
+// Weekly Summary types
+export interface WeeklyWorkoutSummary {
+  day_of_week: number; // 0 = Sunday, 1 = Monday, etc.
+  workout_count: number;
+  total_duration: number;
+  total_calories: number;
+}
+
+export interface WeeklySleepSummary {
+  avg_hours: number;
+  avg_quality: number;
+  days_logged: number;
+}
+
 // Flexible interfaces for dynamic data (kept for backward compatibility)
 export interface AnalyzedFood { [key: string]: any }
 export interface FoodAnalysisResult { [key: string]: any }
 export interface UserProfile { [key: string]: any }
 export interface UserPreferences { [key: string]: any }
 export interface Meal { [key: string]: any }
-export interface TrainingLog { [key: string]: any }
 export interface SportsActivity { [key: string]: any }
 export interface WatchlistItem { [key: string]: any }
 export interface Friend { [key: string]: any }

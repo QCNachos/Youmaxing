@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { Plus } from 'lucide-react';
 import { useBucketList, type BucketListItem } from '@/hooks/useTravel';
 import { toast } from 'sonner';
+import { CountrySelector, getFlagFromCountryName } from './CountrySelector';
 
 interface AddBucketListDialogProps {
   open: boolean;
@@ -29,8 +30,6 @@ export function AddBucketListDialog({ open, onOpenChange, onSuccess }: AddBucket
     priority: 'medium',
     notes: null,
   });
-
-  const popularEmojis = ['🌍', '🇮🇸', '🇳🇿', '🇲🇻', '🇵🇪', '🇯🇵', '🇮🇹', '🇬🇷', '🇨🇭', '🇳🇴', '🇨🇦', '🇦🇺'];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,55 +74,33 @@ export function AddBucketListDialog({ open, onOpenChange, onSuccess }: AddBucket
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Destination *</Label>
-              <Input
-                placeholder="e.g., Iceland"
+              <Label>Country *</Label>
+              <CountrySelector
                 value={formData.destination}
-                onChange={(e) => setFormData({ ...formData, destination: e.target.value })}
-                required
+                onChange={(destination) => {
+                  // Auto-set emoji based on country
+                  const emoji = getFlagFromCountryName(destination);
+                  setFormData({ 
+                    ...formData, 
+                    destination,
+                    country: destination,
+                    emoji 
+                  });
+                }}
               />
             </div>
             <div className="space-y-2">
-              <Label>Country (optional)</Label>
+              <Label>City/State (optional)</Label>
               <Input
-                placeholder="Full name"
-                value={formData.country || ''}
-                onChange={(e) => setFormData({ ...formData, country: e.target.value || null })}
+                placeholder="e.g., Paris, California"
+                value={formData.notes || ''}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               />
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label>Flag/Emoji</Label>
-            <div className="flex flex-wrap gap-2">
-              {popularEmojis.map((emoji) => (
-                <button
-                  key={emoji}
-                  type="button"
-                  onClick={() => setFormData({ ...formData, emoji })}
-                  className={cn(
-                    'text-2xl p-2 rounded-lg transition-all',
-                    formData.emoji === emoji
-                      ? 'bg-primary/20 ring-2 ring-primary'
-                      : 'hover:bg-gray-100 dark:hover:bg-gray-800'
-                  )}
-                >
-                  {emoji}
-                </button>
-              ))}
-              <Input
-                type="text"
-                placeholder="Or type"
-                value={formData.emoji || ''}
-                onChange={(e) => setFormData({ ...formData, emoji: e.target.value })}
-                className="w-20 text-center text-xl"
-                maxLength={10}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>Why do you want to go?</Label>
+            <Label>Why do you want to go? (optional)</Label>
             <Input
               placeholder="e.g., Northern Lights"
               value={formData.reason || ''}

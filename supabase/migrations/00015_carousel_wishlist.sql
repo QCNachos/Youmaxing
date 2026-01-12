@@ -22,3 +22,4 @@ SET carousel_apps = COALESCE(
 WHERE carousel_apps IS NULL
   AND onboarding_completed = true;
 
+
