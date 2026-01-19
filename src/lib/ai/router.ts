@@ -1,6 +1,7 @@
 import OpenAI from 'openai';
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@/lib/supabase/server';
+import { MODELS } from './client';
 
 export type AIProvider = 'openai' | 'anthropic' | 'user_openai' | 'user_anthropic';
 export type AITier = 'free_byok' | 'basic' | 'intermediate' | 'pro';
@@ -18,12 +19,20 @@ export interface AIRouterResult {
   cost?: number;
 }
 
+export interface RouteOptions {
+  /** Custom system prompt with user context */
+  systemPrompt?: string;
+  /** Whether this request might need tools (uses more capable model) */
+  requiresTools?: boolean;
+}
+
 /**
  * Main AI router - determines which API key and model to use based on user's tier
  */
 export async function routeAIRequest(
   userId: string,
-  messages: AIMessage[]
+  messages: AIMessage[],
+  options: RouteOptions = {}
 ): Promise<AIRouterResult> {
   const supabase = await createClient();
   
@@ -33,7 +42,7 @@ export async function routeAIRequest(
   
   // TODO: Implement BYOK when feature is added
   
-  // 3. Check usage quota for paid tiers (Basic and Intermediate)
+  // Check usage quota for paid tiers (Basic and Intermediate)
   if (tier === 'basic' || tier === 'intermediate') {
     const canMakeRequest = await checkAndIncrementUsage(userId, tier);
     if (!canMakeRequest) {
@@ -41,19 +50,34 @@ export async function routeAIRequest(
     }
   }
   
-  // 4. Route to appropriate model based on tier (using our API keys)
+  // Route to appropriate model based on tier (using our API keys)
+  // Use gpt-4o for tool-requiring requests, gpt-4o-mini for regular chat
   const modelConfig = {
-    basic: { provider: 'openai' as const, model: 'gpt-3.5-turbo' },
-    intermediate: { provider: 'anthropic' as const, model: 'claude-3-sonnet-20240229' },
-    pro: { provider: 'anthropic' as const, model: 'claude-3-opus-20240229' },
+    basic: { 
+      provider: 'openai' as const, 
+      model: options.requiresTools ? MODELS.TOOLS : MODELS.CHAT 
+    },
+    intermediate: { 
+      provider: 'openai' as const, 
+      model: options.requiresTools ? MODELS.TOOLS : MODELS.CHAT 
+    },
+    pro: { 
+      provider: 'openai' as const, 
+      model: MODELS.TOOLS  // Pro always gets the best model
+    },
   };
   
   const config = modelConfig[tier as 'basic' | 'intermediate' | 'pro'];
   
+  // Prepend system prompt if provided
+  const messagesWithSystem = options.systemPrompt
+    ? [{ role: 'system' as const, content: options.systemPrompt }, ...messages]
+    : messages;
+  
   if (config.provider === 'openai') {
-    return await callOpenAIWithOurKey(config.model, messages, userId);
+    return await callOpenAIWithOurKey(config.model, messagesWithSystem, userId);
   } else {
-    return await callAnthropicWithOurKey(config.model, messages, userId);
+    return await callAnthropicWithOurKey(config.model, messagesWithSystem, userId);
   }
 }
 
@@ -206,20 +230,28 @@ async function logAIMessage(
   responseTimeMs: number,
   isByok: boolean
 ) {
-  const supabase = await createClient();
-  
-  // Estimate cost (rough estimates)
-  const costPer1kTokens = {
+  // Estimate cost (rough estimates per 1K tokens)
+  const costPer1kTokens: Record<string, number> = {
     'gpt-3.5-turbo': 0.002,
     'gpt-4': 0.03,
     'gpt-4-turbo': 0.01,
+    'gpt-4o': 0.005,        // $5/1M input, $15/1M output (averaged)
+    'gpt-4o-mini': 0.00015, // $0.15/1M input, $0.60/1M output (averaged)
     'claude-3-haiku-20240307': 0.00025,
     'claude-3-sonnet-20240229': 0.003,
+    'claude-3-5-sonnet-20241022': 0.003,
     'claude-3-opus-20240229': 0.015,
   };
   
-  // TODO: Implement message logging when analytics feature is added
-  // const estimatedCost = (tokensUsed / 1000) * (costPer1kTokens[model as keyof typeof costPer1kTokens] || 0);
+  const estimatedCost = (tokensUsed / 1000) * (costPer1kTokens[model] || 0);
+  
+  // Log to console in development for debugging
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`[AI] ${model}: ${tokensUsed} tokens, ~$${estimatedCost.toFixed(4)}, ${responseTimeMs}ms`);
+  }
+  
+  // TODO: Implement message logging to database when analytics feature is added
+  // const supabase = await createClient();
   // await supabase.from('ai_message_log').insert({
   //   user_id: userId,
   //   provider,

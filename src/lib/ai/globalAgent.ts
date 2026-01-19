@@ -1,22 +1,26 @@
 /**
  * Global Agent - The "Geek Buddy" that orchestrates all aspects
  * 
- * This agent aggregates data from all mini-apps and generates proactive,
- * timely insights that connect different areas of life.
+ * This agent provides quick actions and static configurations for the global chat.
+ * 
+ * NOTE: The actual AI context with real user data is now handled by:
+ * - userContext.ts - Fetches real data from Supabase
+ * - /api/chat route - Builds dynamic system prompts with real context
+ * 
+ * The functions below that use mock data (getAspectSummaries, generateGlobalInsights, etc.)
+ * are kept for backwards compatibility but are no longer the primary data source.
  */
 
 import type { AspectType } from '@/types/database';
 import {
   trainingStats,
   todaysWorkoutPlan,
-  workoutsThisWeek,
   weeklyMealPlan,
   getTodaysMeal,
   groceryList,
   financeStats,
   savingsGoals,
   recentTransactions,
-  friends,
   getFriendsToContact,
   getUpcomingBirthdays,
   upcomingTrips,

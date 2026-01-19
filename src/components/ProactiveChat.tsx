@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
 import { aspects } from '@/lib/aspects';
@@ -18,34 +18,26 @@ import {
   ChevronRight,
   ExternalLink,
   Zap,
+  ChevronDown,
+  Trash2,
 } from 'lucide-react';
 import { type ProactiveMessage, type MessageType } from '@/lib/ai/messageTypes';
 import { getLeaderById } from '@/lib/ai/curators';
 import { 
-  getQuickActionsForAspect, 
-  getTodaysMeal, 
-  getMealsWithTag,
-  weeklyMealPlan,
-  groceryList,
-  trainingStats,
-  todaysWorkoutPlan,
-  workoutsThisWeek,
-  financeStats,
-  savingsGoals,
-  recentTransactions,
-  getFriendsToContact,
-  getUpcomingBirthdays,
-  upcomingTrips,
-  mealsDatabase,
-  getDayOfWeek,
+  getQuickActionsForAspect,
 } from '@/lib/miniAppData';
 import {
-  generateGlobalInsights,
-  getGlobalGreeting,
   getGlobalQuickActions,
-  getAspectSummaries,
-  type GlobalInsight,
 } from '@/lib/ai/globalAgent';
+
+// Model info type
+interface ModelInfo {
+  id: string;
+  name: string;
+  provider: string;
+  costTier: string;
+  description: string;
+}
 
 // Message type icons
 const messageTypeIcons: Record<MessageType, React.ComponentType<{ className?: string }>> = {
@@ -84,16 +76,16 @@ function formatRelativeTime(date: Date): string {
 // Generate welcome message based on aspect
 function getWelcomeMessage(aspectId: string, aspectName: string): ProactiveMessage {
   const welcomes: Record<string, string> = {
-    training: `💪 **Training** - You're on a ${trainingStats.streak}-day streak!\n\nToday's plan: ${todaysWorkoutPlan.name} (~${todaysWorkoutPlan.estimatedDuration} min)\n\nWhat would you like to do?`,
-    food: `🍽️ **Food** - Let's plan some great meals!\n\nTonight: ${getTodaysMeal()?.name || 'Nothing planned yet'}\n\nWhat can I help with?`,
-    finance: `💰 **Finance** - Portfolio is ${financeStats.portfolioChange > 0 ? 'up' : 'down'} ${Math.abs(financeStats.portfolioChange)}%\n\nMonthly spend: $${financeStats.monthlySpent} / $${financeStats.monthlyBudget}\n\nHow can I help?`,
-    friends: `👥 **Friends** - ${getFriendsToContact().length} friends you haven't talked to in a while.\n\n${getUpcomingBirthdays().length > 0 ? `Upcoming birthday: ${getUpcomingBirthdays()[0]?.name}` : 'No birthdays this month'}\n\nWhat would you like to do?`,
-    travel: `✈️ **Travel** - Japan trip is ${upcomingTrips[0]?.fundProgress}% funded!\n\n${upcomingTrips.length} trips in planning.\n\nHow can I help?`,
-    family: `👨‍👩‍👧‍👦 **Family** - Stay connected with the people who matter.\n\nAny family events or calls to plan?`,
-    business: `💼 **Business** - Let's crush your goals today.\n\nWhat's the priority?`,
-    sports: `🏆 **Sports** - Track your activities and find new ones.\n\nWhat would you like to do?`,
-    films: `🎬 **TV** - What's next on your watchlist?\n\nNeed recommendations?`,
-    events: `📅 **Events** - Stay on top of what's happening.\n\nWhat can I help with?`,
+    training: `Hey! Ready to help with your training. You can ask me about your progress, log workouts, or get suggestions.`,
+    food: `Hey! Let's plan some great meals. I can help you track what you eat, suggest recipes, or plan your week.`,
+    finance: `Hey! I'm here to help with your finances. Ask about your spending, savings goals, or log expenses.`,
+    friends: `Hey! Let's stay connected with the people who matter. I can remind you who to catch up with or help plan hangouts.`,
+    travel: `Hey! Ready to help plan your adventures. Ask about your trips, find deals, or plan your next destination.`,
+    family: `Hey! Stay connected with family. I can help with events, reminders, or planning gatherings.`,
+    business: `Hey! Let's crush your business goals. What's the priority today?`,
+    sports: `Hey! Track your activities and find new ones. What would you like to do?`,
+    films: `Hey! What's next on your watchlist? I can help with recommendations.`,
+    events: `Hey! Stay on top of what's happening. What can I help with?`,
   };
 
   return {
@@ -108,23 +100,17 @@ function getWelcomeMessage(aspectId: string, aspectName: string): ProactiveMessa
 
 // Generate global welcome message
 function getGlobalWelcomeMessage(): ProactiveMessage {
-  const { greeting, subtext } = getGlobalGreeting();
-  const insights = generateGlobalInsights().slice(0, 2);
-  
-  let content = `${greeting}! 👋\n\n`;
-  
-  // Add top insights
-  if (insights.length > 0) {
-    content += insights.map(i => `${i.emoji} ${i.message}`).join('\n\n');
-    content += '\n\nHow can I help you today?';
-  } else {
-    content += subtext;
-  }
+  const hour = new Date().getHours();
+  let greeting: string;
+  if (hour < 12) greeting = 'Good morning';
+  else if (hour < 17) greeting = 'Good afternoon';
+  else if (hour < 21) greeting = 'Good evening';
+  else greeting = 'Hey there';
   
   return {
     id: 'global-welcome',
     type: 'ai-response',
-    content,
+    content: `${greeting}! I'm your AI buddy, connected to all your life areas. Ask me anything about your training, meals, goals, or just say hi!`,
     timestamp: new Date(),
     isFromUser: false,
   };
@@ -141,7 +127,13 @@ export function ProactiveChat({ mode = 'aspect' }: ProactiveChatProps) {
   const [messages, setMessages] = useState<ProactiveMessage[]>([]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedModel, setSelectedModel] = useState<string>('auto');
+  const [availableModels, setAvailableModels] = useState<ModelInfo[]>([]);
+  const [showModelSelector, setShowModelSelector] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const currentAspectConfig = aspects.find((a) => a.id === currentAspect);
   
   // Get appropriate quick actions based on mode
@@ -149,18 +141,128 @@ export function ProactiveChat({ mode = 'aspect' }: ProactiveChatProps) {
     ? getGlobalQuickActions()
     : getQuickActionsForAspect(currentAspect);
 
-  // Reset messages when aspect changes or mode changes
+  // Determine the conversation aspect key
+  const conversationAspect = mode === 'global' ? 'global' : currentAspect;
+
+  // Fetch available models on mount
   useEffect(() => {
-    if (mode === 'global') {
-      setMessages([getGlobalWelcomeMessage()]);
-    } else {
-      setMessages([getWelcomeMessage(currentAspect, currentAspectConfig?.name || 'Aspect')]);
+    fetch('/api/chat/models')
+      .then(res => res.json())
+      .then(data => {
+        setAvailableModels(data.models || []);
+        if (data.defaultModel) {
+          setSelectedModel(data.defaultModel);
+        }
+      })
+      .catch(err => console.error('Failed to fetch models:', err));
+  }, []);
+
+  // Load conversation history from database
+  // Only reload when conversationAspect actually changes (not when carousel moves in global mode)
+  useEffect(() => {
+    let isCancelled = false;
+    setIsLoadingHistory(true);
+    
+    fetch(`/api/conversations?aspect=${conversationAspect}`)
+      .then(res => res.json())
+      .then(data => {
+        if (isCancelled) return;
+        
+        if (data.messages && data.messages.length > 0) {
+          // Restore messages with proper Date objects
+          const restoredMessages = data.messages.map((m: ProactiveMessage & { timestamp: string }) => ({
+            ...m,
+            timestamp: new Date(m.timestamp),
+          }));
+          setMessages(restoredMessages);
+        } else {
+          // No saved history, show welcome message
+          if (mode === 'global') {
+            setMessages([getGlobalWelcomeMessage()]);
+          } else {
+            // Get the aspect name for the welcome message
+            const aspectConfig = aspects.find((a) => a.id === conversationAspect);
+            setMessages([getWelcomeMessage(conversationAspect, aspectConfig?.name || 'Aspect')]);
+          }
+        }
+        setError(null);
+      })
+      .catch(err => {
+        if (isCancelled) return;
+        console.error('Failed to load conversation:', err);
+        // Fallback to welcome message
+        if (mode === 'global') {
+          setMessages([getGlobalWelcomeMessage()]);
+        } else {
+          const aspectConfig = aspects.find((a) => a.id === conversationAspect);
+          setMessages([getWelcomeMessage(conversationAspect, aspectConfig?.name || 'Aspect')]);
+        }
+      })
+      .finally(() => {
+        if (!isCancelled) {
+          setIsLoadingHistory(false);
+        }
+      });
+    
+    return () => {
+      isCancelled = true;
+    };
+  }, [conversationAspect, mode]); // Only depends on conversationAspect and mode - not currentAspect
+
+  // Save conversation to database (debounced)
+  useEffect(() => {
+    // Don't save empty conversations or while loading
+    if (messages.length === 0 || isLoadingHistory) return;
+    
+    // Don't save if only welcome message
+    const hasUserMessages = messages.some(m => m.isFromUser);
+    if (!hasUserMessages && messages.length === 1) return;
+
+    // Debounce saves
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
     }
-  }, [currentAspect, currentAspectConfig?.name, mode]);
+
+    saveTimeoutRef.current = setTimeout(() => {
+      // Serialize messages for storage
+      const serializableMessages = messages.map(m => ({
+        ...m,
+        timestamp: m.timestamp.toISOString(),
+      }));
+
+      fetch('/api/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: serializableMessages,
+          aspect: conversationAspect,
+        }),
+      }).catch(err => {
+        console.error('Failed to save conversation:', err);
+      });
+    }, 1000); // Save after 1 second of inactivity
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [messages, conversationAspect, isLoadingHistory]);
 
   // Scroll to bottom on new messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // Build conversation history for API (last 10 messages, excluding welcome)
+  const buildConversationHistory = useCallback(() => {
+    return messages
+      .filter(m => m.id !== 'welcome' && m.id !== 'global-welcome')
+      .slice(-9) // Keep last 9 to leave room for new message
+      .map(m => ({
+        role: m.isFromUser ? 'user' as const : 'assistant' as const,
+        content: m.content,
+      }));
   }, [messages]);
 
   const handleSend = async (messageText?: string) => {
@@ -179,22 +281,84 @@ export function ProactiveChat({ mode = 'aspect' }: ProactiveChatProps) {
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setIsTyping(true);
+    setError(null);
 
-    // Simulate AI response
-    setTimeout(() => {
+    try {
+      // Build conversation history and add new message
+      const history = buildConversationHistory();
+      history.push({ role: 'user', content: textToSend });
+
+      // Call the real AI API with selected model
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: history,
+          aspectId: mode === 'aspect' ? currentAspect : undefined,
+          enableTools: true,
+          model: selectedModel,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || data.message || 'Failed to get response');
+      }
+
+      // Build metadata based on what was used
+      let metadata: ProactiveMessage['metadata'] = undefined;
+      if (data.toolsUsed) {
+        metadata = { 
+          actionable: true, 
+          actionLabel: `Used: ${data.toolsUsed.join(', ')}` 
+        };
+      } else if (data.webSearchUsed) {
+        metadata = {
+          actionable: true,
+          actionLabel: 'Searched the web',
+        };
+      }
+
+      // Append sources only if the AI didn't already include links in the response
+      let messageContent = data.message;
+      const hasLinksInResponse = /\[.*?\]\(https?:\/\/.*?\)/.test(data.message);
+      if (data.sources && data.sources.length > 0 && !hasLinksInResponse) {
+        messageContent += '\n\n**Sources:**\n' + data.sources
+          .slice(0, 3)
+          .map((s: { title: string; url: string }) => `- [${s.title}](${s.url})`)
+          .join('\n');
+      }
+
       const aiResponse: ProactiveMessage = {
         id: `ai-${Date.now()}`,
         type: 'ai-response',
-        content: mode === 'global' 
-          ? getGlobalAwareResponse(textToSend)
-          : getAspectAwareResponse(textToSend, currentAspect),
+        content: messageContent,
+        timestamp: new Date(),
+        isFromUser: false,
+        aspectId: mode === 'global' ? undefined : currentAspect,
+        metadata,
+      };
+      
+      setMessages((prev) => [...prev, aiResponse]);
+    } catch (err) {
+      console.error('Chat error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Something went wrong';
+      setError(errorMessage);
+      
+      // Add error message to chat
+      const errorResponse: ProactiveMessage = {
+        id: `error-${Date.now()}`,
+        type: 'ai-response',
+        content: `Sorry, I ran into an issue: ${errorMessage}. Please try again.`,
         timestamp: new Date(),
         isFromUser: false,
         aspectId: mode === 'global' ? undefined : currentAspect,
       };
-      setMessages((prev) => [...prev, aiResponse]);
+      setMessages((prev) => [...prev, errorResponse]);
+    } finally {
       setIsTyping(false);
-    }, 600 + Math.random() * 600);
+    }
   };
 
   const handleQuickAction = (prompt: string) => {
@@ -205,6 +369,25 @@ export function ProactiveChat({ mode = 'aspect' }: ProactiveChatProps) {
   const goToMiniApp = () => {
     if (mode === 'aspect' && currentAspect) {
       router.push(`/${currentAspect}`);
+    }
+  };
+
+  // Clear conversation history
+  const clearConversation = async () => {
+    // Delete from database
+    try {
+      await fetch(`/api/conversations?aspect=${conversationAspect}`, {
+        method: 'DELETE',
+      });
+    } catch (err) {
+      console.error('Failed to clear conversation:', err);
+    }
+    
+    // Reset to welcome message
+    if (mode === 'global') {
+      setMessages([getGlobalWelcomeMessage()]);
+    } else {
+      setMessages([getWelcomeMessage(currentAspect, currentAspectConfig?.name || 'Aspect')]);
     }
   };
 
@@ -230,6 +413,63 @@ export function ProactiveChat({ mode = 'aspect' }: ProactiveChatProps) {
               <h2 className={cn("font-semibold", theme === 'light' ? "text-slate-800" : "text-white")}>Your AI Buddy</h2>
               <p className={cn("text-xs", theme === 'light' ? "text-slate-400" : "text-white/40")}>Connected to all your life areas</p>
             </div>
+            {/* Model Selector */}
+            <div className="relative">
+              <button
+                onClick={() => setShowModelSelector(!showModelSelector)}
+                className={cn(
+                  "px-2 py-1 rounded-full text-[10px] font-medium flex items-center gap-1 transition-all hover:opacity-80",
+                  theme === 'light' 
+                    ? "bg-slate-100 text-slate-600" 
+                    : "bg-white/10 text-white/70"
+                )}
+              >
+                {availableModels.find(m => m.id === selectedModel)?.name || 'Auto'}
+                <ChevronDown className="h-3 w-3" />
+              </button>
+              {showModelSelector && (
+                <div className={cn(
+                  "absolute right-0 top-full mt-1 py-1 rounded-lg shadow-lg z-50 min-w-[180px]",
+                  theme === 'light' ? "bg-white border border-slate-200" : "bg-slate-800 border border-white/10"
+                )}>
+                  {availableModels.map(model => (
+                    <button
+                      key={model.id}
+                      onClick={() => {
+                        setSelectedModel(model.id);
+                        setShowModelSelector(false);
+                      }}
+                      className={cn(
+                        "w-full px-3 py-2 text-left text-xs flex flex-col gap-0.5 hover:bg-opacity-50",
+                        selectedModel === model.id 
+                          ? (theme === 'light' ? "bg-violet-50" : "bg-violet-500/20")
+                          : (theme === 'light' ? "hover:bg-slate-50" : "hover:bg-white/5"),
+                        theme === 'light' ? "text-slate-700" : "text-white/90"
+                      )}
+                    >
+                      <span className="font-medium">{model.name}</span>
+                      <span className={cn(
+                        "text-[10px]",
+                        theme === 'light' ? "text-slate-400" : "text-white/40"
+                      )}>{model.description}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            {/* Clear conversation button */}
+            <button
+              onClick={clearConversation}
+              className={cn(
+                "p-1.5 rounded-full transition-colors",
+                theme === 'light' 
+                  ? "text-slate-400 hover:text-slate-600 hover:bg-slate-100" 
+                  : "text-white/40 hover:text-white/70 hover:bg-white/10"
+              )}
+              title="Clear conversation"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
             <div
               className="px-2 py-1 rounded-full text-[10px] font-medium bg-gradient-to-r from-violet-500/20 to-pink-500/20 text-violet-400"
             >
@@ -252,6 +492,63 @@ export function ProactiveChat({ mode = 'aspect' }: ProactiveChatProps) {
               <h2 className={cn("font-semibold", theme === 'light' ? "text-slate-800" : "text-white")}>{currentAspectConfig?.name}</h2>
               <p className={cn("text-xs", theme === 'light' ? "text-slate-400" : "text-white/40")}>AI-powered assistant</p>
             </div>
+            {/* Model Selector for Aspect Mode */}
+            <div className="relative">
+              <button
+                onClick={() => setShowModelSelector(!showModelSelector)}
+                className={cn(
+                  "px-2 py-1 rounded-full text-[10px] font-medium flex items-center gap-1 transition-all hover:opacity-80",
+                  theme === 'light' 
+                    ? "bg-slate-100 text-slate-600" 
+                    : "bg-white/10 text-white/70"
+                )}
+              >
+                {availableModels.find(m => m.id === selectedModel)?.name || 'Auto'}
+                <ChevronDown className="h-3 w-3" />
+              </button>
+              {showModelSelector && (
+                <div className={cn(
+                  "absolute right-0 top-full mt-1 py-1 rounded-lg shadow-lg z-50 min-w-[180px]",
+                  theme === 'light' ? "bg-white border border-slate-200" : "bg-slate-800 border border-white/10"
+                )}>
+                  {availableModels.map(model => (
+                    <button
+                      key={model.id}
+                      onClick={() => {
+                        setSelectedModel(model.id);
+                        setShowModelSelector(false);
+                      }}
+                      className={cn(
+                        "w-full px-3 py-2 text-left text-xs flex flex-col gap-0.5 hover:bg-opacity-50",
+                        selectedModel === model.id 
+                          ? (theme === 'light' ? "bg-violet-50" : "bg-violet-500/20")
+                          : (theme === 'light' ? "hover:bg-slate-50" : "hover:bg-white/5"),
+                        theme === 'light' ? "text-slate-700" : "text-white/90"
+                      )}
+                    >
+                      <span className="font-medium">{model.name}</span>
+                      <span className={cn(
+                        "text-[10px]",
+                        theme === 'light' ? "text-slate-400" : "text-white/40"
+                      )}>{model.description}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            {/* Clear conversation button */}
+            <button
+              onClick={clearConversation}
+              className={cn(
+                "p-1.5 rounded-full transition-colors",
+                theme === 'light' 
+                  ? "text-slate-400 hover:text-slate-600 hover:bg-slate-100" 
+                  : "text-white/40 hover:text-white/70 hover:bg-white/10"
+              )}
+              title="Clear conversation"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
             <button
               onClick={goToMiniApp}
               className={cn(
@@ -269,12 +566,31 @@ export function ProactiveChat({ mode = 'aspect' }: ProactiveChatProps) {
           </>
         )}
       </div>
+      
+      {/* Click outside to close model selector */}
+      {showModelSelector && (
+        <div 
+          className="fixed inset-0 z-40" 
+          onClick={() => setShowModelSelector(false)}
+        />
+      )}
 
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6 scrollbar-thin">
-        {messages.map((message) => (
-          <MessageBubble key={message.id} message={message} />
-        ))}
+        {isLoadingHistory ? (
+          <div className="flex items-center justify-center py-8">
+            <div className={cn(
+              "animate-pulse text-sm",
+              theme === 'light' ? "text-slate-400" : "text-white/40"
+            )}>
+              Loading conversation...
+            </div>
+          </div>
+        ) : (
+          messages.map((message) => (
+            <MessageBubble key={message.id} message={message} />
+          ))
+        )}
 
         {/* Typing Indicator */}
         {isTyping && (
@@ -479,269 +795,97 @@ function MessageBubble({ message }: { message: ProactiveMessage }) {
   );
 }
 
-// Format message content with markdown-like bold
+// Format message content with rich markdown support
 function formatMessageContent(content: string, theme: 'dark' | 'light' = 'dark'): React.ReactNode {
-  // Split by **bold** markers
-  const parts = content.split(/\*\*(.*?)\*\*/g);
-  return parts.map((part, i) =>
-    i % 2 === 1 ? <strong key={i} className={theme === 'light' ? "font-semibold text-slate-800" : "font-semibold text-white"}>{part}</strong> : part
+  const textColor = theme === 'light' ? 'text-slate-600' : 'text-slate-300';
+  const boldColor = theme === 'light' ? 'text-slate-800' : 'text-white';
+  const linkColor = theme === 'light' ? 'text-blue-600 hover:text-blue-700' : 'text-blue-400 hover:text-blue-300';
+  const bulletColor = theme === 'light' ? 'text-slate-400' : 'text-slate-500';
+  
+  // Split content into lines for processing
+  const lines = content.split('\n');
+  
+  return (
+    <div className="space-y-2">
+      {lines.map((line, lineIndex) => {
+        const trimmedLine = line.trim();
+        
+        // Skip empty lines but preserve spacing
+        if (!trimmedLine) {
+          return <div key={lineIndex} className="h-1" />;
+        }
+        
+        // Check if it's a bullet point
+        const isBullet = trimmedLine.startsWith('- ') || trimmedLine.startsWith('* ');
+        const bulletContent = isBullet ? trimmedLine.slice(2) : trimmedLine;
+        
+        // Process inline formatting (bold and links)
+        const formattedContent = formatInlineContent(bulletContent, boldColor, linkColor);
+        
+        if (isBullet) {
+          return (
+            <div key={lineIndex} className="flex items-start gap-2 pl-1">
+              <span className={`${bulletColor} mt-1.5 text-xs`}>&#x2022;</span>
+              <span className={textColor}>{formattedContent}</span>
+            </div>
+          );
+        }
+        
+        return (
+          <div key={lineIndex} className={textColor}>
+            {formattedContent}
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
-// ============================================
-// ASPECT-AWARE AI RESPONSES
-// ============================================
-
-function getAspectAwareResponse(input: string, aspectId: string): string {
-  const lowInput = input.toLowerCase();
-
-  // FOOD RESPONSES
-  if (aspectId === 'food') {
-    if (lowInput.includes('dinner') || lowInput.includes('tonight')) {
-      const todaysMeal = getTodaysMeal();
-      if (todaysMeal) {
-        return `Tonight you planned **${todaysMeal.emoji} ${todaysMeal.name}**!\n\nIt's tagged as: ${todaysMeal.tags.join(', ')}\n${todaysMeal.prepTime ? `Prep time: ~${todaysMeal.prepTime} min` : ''}\n\nWant to change it or need the recipe?`;
-      } else {
-        return `Nothing planned for ${getDayOfWeek()} yet!\n\nHere are some quick options:\n• 🌯 Wrap Caesar/Ranch (10 min)\n• 🥞 Crêpes protéinées (Quick)\n• 🍝 Spaghetti aux saucisses (20 min)\n\nWhich sounds good?`;
-      }
+// Format inline content: **bold** and [text](url) links
+function formatInlineContent(text: string, boldColor: string, linkColor: string): React.ReactNode {
+  // Combined regex for bold and links
+  const regex = /\*\*(.*?)\*\*|\[(.*?)\]\((.*?)\)/g;
+  const parts: React.ReactNode[] = [];
+  let lastIndex = 0;
+  let match;
+  let keyIndex = 0;
+  
+  while ((match = regex.exec(text)) !== null) {
+    // Add text before the match
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
     }
     
-    if (lowInput.includes('plan') && lowInput.includes('week')) {
-      const planned = Object.entries(weeklyMealPlan)
-        .filter(([_, meal]) => meal !== null)
-        .map(([day, meal]) => `• ${day}: ${meal?.emoji} ${meal?.name}`)
-        .join('\n');
-      const unplanned = Object.entries(weeklyMealPlan)
-        .filter(([_, meal]) => meal === null)
-        .map(([day]) => day)
-        .join(', ');
-      
-      return `Here's your current meal plan:\n\n${planned || 'Nothing planned yet'}\n\n${unplanned ? `Still need to plan: ${unplanned}\n\n` : ''}Want me to suggest meals for the empty days?`;
+    if (match[1] !== undefined) {
+      // Bold text: **text**
+      parts.push(
+        <strong key={`bold-${keyIndex++}`} className={`font-semibold ${boldColor}`}>
+          {match[1]}
+        </strong>
+      );
+    } else if (match[2] !== undefined && match[3] !== undefined) {
+      // Link: [text](url)
+      parts.push(
+        <a 
+          key={`link-${keyIndex++}`} 
+          href={match[3]} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className={`${linkColor} underline underline-offset-2 transition-colors`}
+        >
+          {match[2]}
+        </a>
+      );
     }
     
-    if (lowInput.includes('grocery') || lowInput.includes('list') || lowInput.includes('shopping')) {
-      const unchecked = groceryList.filter(i => !i.checked);
-      const checked = groceryList.filter(i => i.checked);
-      
-      return `📝 **Grocery List**\n\nStill need:\n${unchecked.map(i => `• ${i.item}`).join('\n')}\n\n✅ Already got (${checked.length} items)\n\nWant me to add anything based on this week's meals?`;
-    }
-    
-    if (lowInput.includes('quick') || lowInput.includes('fast') || lowInput.includes('15 min')) {
-      const quickMeals = getMealsWithTag('Quick');
-      return `Here are your quick meals:\n\n${quickMeals.slice(0, 4).map(m => `• ${m.emoji} ${m.name} - ${m.tags.filter(t => t !== 'Quick').join(', ')}`).join('\n')}\n\nWhich one sounds good?`;
-    }
-    
-    if (lowInput.includes('protein') || lowInput.includes('high-protein')) {
-      const proteinMeals = getMealsWithTag('Protein-rich').concat(getMealsWithTag('High-protein'));
-      return `High protein options:\n\n${proteinMeals.slice(0, 4).map(m => `• ${m.emoji} ${m.name}`).join('\n')}\n\nThese pair well with your training goals 💪`;
-    }
+    lastIndex = match.index + match[0].length;
   }
-
-  // TRAINING RESPONSES
-  if (aspectId === 'training') {
-    if (lowInput.includes('today') || lowInput.includes('plan')) {
-      return `Today's plan: **${todaysWorkoutPlan.name}** (~${todaysWorkoutPlan.estimatedDuration} min)\n\nExercises:\n${todaysWorkoutPlan.exercises.map(e => `• ${e.name}: ${e.sets} sets × ${e.reps}`).join('\n')}\n\nYou're on a **${trainingStats.streak}-day streak**! Ready to keep it going?`;
-    }
-    
-    if (lowInput.includes('progress') || lowInput.includes('week') || lowInput.includes('doing')) {
-      return `This week:\n\n• **${trainingStats.weeklyCompleted}/${trainingStats.weeklyGoal}** workouts completed ✅\n• **${trainingStats.caloriesBurned}** kcal burned\n• **${trainingStats.streak}-day** streak 🔥\n• Sleep avg: **${trainingStats.avgSleep}h**\n\nYou're crushing it! The consistency is what matters most.`;
-    }
-    
-    if (lowInput.includes('log') || lowInput.includes('workout')) {
-      return `Ready to log a workout!\n\nWhat did you do today?\n• Strength training\n• Cardio\n• Flexibility/Yoga\n• Sports activity\n\nOr just tell me what you did and I'll log it.`;
-    }
-    
-    if (lowInput.includes('suggest') || lowInput.includes('recommend')) {
-      return `Based on your recent workouts, I'd suggest:\n\n**Upper Body Day** - You hit lower body yesterday\n\nOr if you want variety:\n• 🏃 30-min Zone 2 cardio\n• 🧘 Mobility & stretching\n• 💪 Full body circuit\n\nWhat sounds good?`;
-    }
+  
+  // Add remaining text
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
   }
-
-  // FINANCE RESPONSES
-  if (aspectId === 'finance') {
-    if (lowInput.includes('portfolio') || lowInput.includes('investment')) {
-      return `📈 **Portfolio Status**\n\nTotal value: **$${financeStats.portfolioValue.toLocaleString()}**\nChange: ${financeStats.portfolioChange > 0 ? '+' : ''}${financeStats.portfolioChange}% this week\n\nYour diversification looks healthy. Want a detailed breakdown?`;
-    }
-    
-    if (lowInput.includes('spending') || lowInput.includes('budget')) {
-      const remaining = financeStats.monthlyBudget - financeStats.monthlySpent;
-      return `💳 **Monthly Budget**\n\nSpent: **$${financeStats.monthlySpent}** / $${financeStats.monthlyBudget}\nRemaining: **$${remaining}** (${Math.round((remaining / financeStats.monthlyBudget) * 100)}%)\n\nRecent:\n${recentTransactions.slice(0, 3).map(t => `• ${t.description}: ${t.amount < 0 ? '-' : '+'}$${Math.abs(t.amount)}`).join('\n')}\n\nYou're under budget! Nice work.`;
-    }
-    
-    if (lowInput.includes('saving') || lowInput.includes('goal')) {
-      return `🎯 **Savings Goals**\n\n${savingsGoals.map(g => `• **${g.name}**: $${g.current.toLocaleString()} / $${g.target.toLocaleString()} (${Math.round((g.current / g.target) * 100)}%)${g.deadline ? ` - by ${g.deadline}` : ''}`).join('\n')}\n\nJapan trip is almost funded! 🎌`;
-    }
-    
-    if (lowInput.includes('log') || lowInput.includes('expense')) {
-      return `Let's log an expense.\n\nWhat did you spend on?\n• 🍔 Food & Dining\n• 🚗 Transportation\n• 🎬 Entertainment\n• 🛒 Shopping\n• Other\n\nOr just tell me: "Coffee $5.50"`;
-    }
-  }
-
-  // FRIENDS RESPONSES
-  if (aspectId === 'friends') {
-    if (lowInput.includes('catch up') || lowInput.includes('talk') || lowInput.includes('contact')) {
-      const toContact = getFriendsToContact();
-      if (toContact.length > 0) {
-        const daysAgo = (f: any) => Math.floor((Date.now() - f.lastContact.getTime()) / (24 * 60 * 60 * 1000));
-        return `Friends you haven't talked to in a while:\n\n${toContact.map(f => `• **${f.name}** - ${daysAgo(f)} days ago${f.notes ? ` (${f.notes})` : ''}`).join('\n')}\n\nWant to send a quick message to one of them?`;
-      }
-      return `You're doing great staying connected! 🙌\n\nEveryone's been contacted in the last 2 weeks.`;
-    }
-    
-    if (lowInput.includes('birthday')) {
-      const upcoming = getUpcomingBirthdays();
-      if (upcoming.length > 0) {
-        return `🎂 **Upcoming Birthdays**\n\n${upcoming.map(f => `• ${f.name} - ${f.birthday?.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`).join('\n')}\n\nNeed gift ideas?`;
-      }
-      return `No birthdays in the next 30 days!\n\nWant me to remind you when one is coming up?`;
-    }
-    
-    if (lowInput.includes('plan') || lowInput.includes('hangout')) {
-      return `Let's plan something! 🎉\n\nWho do you want to hang out with?\n\nOr I can suggest:\n• Group dinner (Sarah mentioned wanting to try that new restaurant)\n• Activity with Mike (hasn't connected in 20 days)\n• Weekend plans with Alex\n\nWhat sounds good?`;
-    }
-  }
-
-  // TRAVEL RESPONSES
-  if (aspectId === 'travel') {
-    if (lowInput.includes('trip') || lowInput.includes('status') || lowInput.includes('plan')) {
-      return `✈️ **Your Trips**\n\n${upcomingTrips.map(t => `• **${t.destination}** (${t.dates})\n  Status: ${t.status} | Fund: ${t.fundProgress}% 💰`).join('\n\n')}\n\nJapan is almost ready! Want to start planning the itinerary?`;
-    }
-    
-    if (lowInput.includes('deal') || lowInput.includes('cheap') || lowInput.includes('flight')) {
-      return `🔍 **Flight Deals**\n\nBased on your wishlist:\n• Tokyo: Prices dropped 18% this week! ✨\n• Lisbon: Good deals for spring\n• Reykjavik: Off-season prices available\n\nWant me to set up price alerts?`;
-    }
-  }
-
-  // DEFAULT RESPONSES
-  return `Got it! Let me help with ${aspectId}.\n\nBased on your data, here's what I'm seeing:\n\nWhat specifically would you like to explore?`;
+  
+  return parts.length > 0 ? parts : text;
 }
 
-// ============================================
-// GLOBAL-AWARE AI RESPONSES
-// ============================================
-
-function getGlobalAwareResponse(input: string): string {
-  const lowInput = input.toLowerCase();
-  const summaries = getAspectSummaries();
-  const insights = generateGlobalInsights();
-  
-  // DAILY OVERVIEW
-  if (lowInput.includes('today') || lowInput.includes('overview') || lowInput.includes('what\'s on')) {
-    const trainingSummary = summaries.find(s => s.aspectId === 'training');
-    const foodSummary = summaries.find(s => s.aspectId === 'food');
-    const friendsSummary = summaries.find(s => s.aspectId === 'friends');
-    
-    let response = `Here's your day at a glance:\n\n`;
-    
-    if (trainingSummary) {
-      response += `💪 **Training**: ${trainingSummary.headline}. Today: ${todaysWorkoutPlan.name}\n`;
-    }
-    if (foodSummary) {
-      response += `🍽️ **Food**: ${foodSummary.headline}\n`;
-    }
-    if (friendsSummary && friendsSummary.status === 'attention') {
-      response += `👥 **Friends**: ${friendsSummary.headline}\n`;
-    }
-    
-    // Add top insight
-    if (insights.length > 0) {
-      response += `\n${insights[0].emoji} **Insight**: ${insights[0].message}`;
-    }
-    
-    return response;
-  }
-  
-  // STATUS CHECK
-  if (lowInput.includes('how am i') || lowInput.includes('status') || lowInput.includes('doing')) {
-    let response = `Here's how you're doing across the board:\n\n`;
-    
-    for (const summary of summaries) {
-      const statusEmoji = summary.status === 'good' ? '✅' : summary.status === 'attention' ? '⚠️' : '➖';
-      response += `${statusEmoji} **${summary.aspectName}**: ${summary.headline}`;
-      if (summary.details) {
-        response += ` (${summary.details})`;
-      }
-      response += `\n`;
-    }
-    
-    response += `\nOverall, you're doing great! The consistency in training is paying off. 💪`;
-    
-    return response;
-  }
-  
-  // WHAT'S NEXT
-  if (lowInput.includes('next') || lowInput.includes('focus') || lowInput.includes('priority')) {
-    const attentionItems = summaries.filter(s => s.status === 'attention');
-    const topInsights = insights.filter(i => i.priority === 'high' || i.priority === 'medium').slice(0, 2);
-    
-    let response = `Based on your data, here's what I'd focus on:\n\n`;
-    
-    if (attentionItems.length > 0) {
-      response += `**Needs attention:**\n`;
-      for (const item of attentionItems) {
-        response += `• ${item.aspectName}: ${item.headline}\n`;
-      }
-      response += `\n`;
-    }
-    
-    if (topInsights.length > 0) {
-      response += `**Suggestions:**\n`;
-      for (const insight of topInsights) {
-        response += `• ${insight.emoji} ${insight.message}\n`;
-      }
-    }
-    
-    if (attentionItems.length === 0 && topInsights.length === 0) {
-      response += `You're all caught up! Maybe take a moment to plan something fun?\n\n`;
-      response += `Your Japan trip is ${upcomingTrips[0]?.fundProgress}% funded - exciting!`;
-    }
-    
-    return response;
-  }
-  
-  // SURPRISE ME
-  if (lowInput.includes('surprise') || lowInput.includes('interesting') || lowInput.includes('insight')) {
-    const connectionInsights = insights.filter(i => i.category === 'connection');
-    const celebrationInsights = insights.filter(i => i.category === 'celebration');
-    
-    let response = `Here's something interesting:\n\n`;
-    
-    if (connectionInsights.length > 0) {
-      response += `${connectionInsights[0].emoji} ${connectionInsights[0].message}\n\n`;
-    } else if (celebrationInsights.length > 0) {
-      response += `${celebrationInsights[0].emoji} ${celebrationInsights[0].message}\n\n`;
-    } else {
-      // Fun cross-aspect connection
-      response += `🎯 Did you know? Your ${trainingStats.streak}-day workout streak and meal planning are probably connected. Consistent exercise tends to boost your motivation for healthy eating!\n\n`;
-    }
-    
-    response += `Want to dive into any specific area?`;
-    
-    return response;
-  }
-  
-  // TRAINING MENTION
-  if (lowInput.includes('training') || lowInput.includes('workout') || lowInput.includes('exercise')) {
-    return `💪 **Training Quick View**\n\n• Streak: ${trainingStats.streak} days 🔥\n• This week: ${trainingStats.weeklyCompleted}/${trainingStats.weeklyGoal} workouts\n• Today: ${todaysWorkoutPlan.name}\n\nWant me to open the Training mini-app for more details?`;
-  }
-  
-  // FOOD MENTION
-  if (lowInput.includes('food') || lowInput.includes('meal') || lowInput.includes('dinner')) {
-    const todaysMeal = getTodaysMeal();
-    return `🍽️ **Food Quick View**\n\n• Tonight: ${todaysMeal ? `${todaysMeal.emoji} ${todaysMeal.name}` : 'Nothing planned'}\n• Grocery list: ${groceryList.filter(i => !i.checked).length} items\n\nWant me to open the Food mini-app for the full meal plan?`;
-  }
-  
-  // FINANCE MENTION
-  if (lowInput.includes('finance') || lowInput.includes('money') || lowInput.includes('budget') || lowInput.includes('saving')) {
-    return `💰 **Finance Quick View**\n\n• Portfolio: $${financeStats.portfolioValue.toLocaleString()} (${financeStats.portfolioChange > 0 ? '+' : ''}${financeStats.portfolioChange}%)\n• Monthly: $${financeStats.monthlySpent} / $${financeStats.monthlyBudget}\n• Japan fund: ${upcomingTrips[0]?.fundProgress}% complete\n\nWant me to open the Finance mini-app?`;
-  }
-  
-  // FRIENDS MENTION
-  if (lowInput.includes('friend') || lowInput.includes('social') || lowInput.includes('birthday')) {
-    const toContact = getFriendsToContact();
-    const upcomingBdays = getUpcomingBirthdays();
-    return `👥 **Friends Quick View**\n\n• To catch up with: ${toContact.length} friends\n• Upcoming birthdays: ${upcomingBdays.length > 0 ? upcomingBdays.map(f => f.name).join(', ') : 'None this month'}\n\nWant me to open the Friends mini-app?`;
-  }
-  
-  // DEFAULT GLOBAL RESPONSE
-  return `I'm connected to all your life areas - training, food, finance, friends, travel, and more!\n\nTry asking:\n• "What's on today?"\n• "How am I doing?"\n• "What should I focus on?"\n• Or ask about any specific area\n\nWhat would you like to explore?`;
-}

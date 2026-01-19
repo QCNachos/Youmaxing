@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import type { Recipe, RecipeIngredient } from './useRecipes';
+import type { RealtimeChannel } from '@supabase/supabase-js';
+import type { Recipe } from './useRecipes';
 
 export interface GroceryItem {
   id: string;
@@ -45,6 +46,8 @@ export function useGrocery() {
   const [groceryList, setGroceryList] = useState<GroceryList | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const listIdRef = useRef<string | null>(null);
 
   const fetchActiveGroceryList = useCallback(async () => {
     setLoading(true);
@@ -72,6 +75,7 @@ export function useGrocery() {
       }
       
       setGroceryList(data || null);
+      listIdRef.current = data?.id || null;
     } catch (err) {
       console.error('Error fetching grocery list:', err);
       setError('Failed to load grocery list');
@@ -80,8 +84,66 @@ export function useGrocery() {
     }
   }, []);
 
+  // Initial fetch
   useEffect(() => {
     fetchActiveGroceryList();
+  }, [fetchActiveGroceryList]);
+
+  // Subscribe to realtime updates on the grocery list
+  useEffect(() => {
+    const supabase = createClient();
+    
+    // Setup realtime subscription for grocery_lists table
+    const setupSubscription = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Cleanup previous subscription
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+      }
+
+      // Subscribe to changes on grocery_lists for this user
+      channelRef.current = supabase
+        .channel('grocery_lists_changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
+            schema: 'public',
+            table: 'grocery_lists',
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            console.log('[Grocery] Realtime update received:', payload.eventType);
+            
+            if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
+              const newData = payload.new as GroceryList;
+              // Only update if it's the active list
+              if (newData.is_active) {
+                setGroceryList(newData);
+                listIdRef.current = newData.id;
+              }
+            } else if (payload.eventType === 'DELETE') {
+              // If deleted list was ours, refetch
+              if (payload.old && (payload.old as GroceryList).id === listIdRef.current) {
+                fetchActiveGroceryList();
+              }
+            }
+          }
+        )
+        .subscribe();
+    };
+
+    setupSubscription();
+
+    // Cleanup on unmount
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+    };
   }, [fetchActiveGroceryList]);
 
   const createGroceryList = useCallback(async (name: string = 'Shopping List'): Promise<GroceryList | null> => {
