@@ -15,62 +15,30 @@ import { cn } from '@/lib/utils';
 import { 
   CalendarDays,
   Clock,
-  MapPin,
   Plus,
-  Check,
-  X,
   Bell,
+  Trash2,
+  Loader2,
 } from 'lucide-react';
-import type { CalendarEvent, AspectType } from '@/types/database';
-import { format, isSameDay, addDays } from 'date-fns';
+import type { AspectType } from '@/types/database';
+import { format, isSameDay } from 'date-fns';
 import { aspects } from '@/lib/aspects';
-
-const mockEvents: CalendarEvent[] = [
-  {
-    id: '1',
-    user_id: '1',
-    title: 'Team Meeting',
-    description: 'Weekly sync',
-    aspect: 'business',
-    start_date: new Date().toISOString(),
-    end_date: null,
-    all_day: false,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: '2',
-    user_id: '1',
-    title: 'Dinner with Alex',
-    description: 'Catch up at the new Italian place',
-    aspect: 'friends',
-    start_date: addDays(new Date(), 2).toISOString(),
-    end_date: null,
-    all_day: false,
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: '3',
-    user_id: '1',
-    title: 'Gym Session',
-    description: null,
-    aspect: 'training',
-    start_date: addDays(new Date(), 1).toISOString(),
-    end_date: null,
-    all_day: false,
-    created_at: new Date().toISOString(),
-  },
-];
-
-const invitations = [
-  { title: "Sarah's Birthday Party", date: 'Saturday 8PM', host: 'Sarah', status: 'pending' },
-  { title: 'Company Offsite', date: 'Next Friday', host: 'Work', status: 'pending' },
-];
+import { useEvents } from '@/hooks/useEvents';
 
 export function Events() {
   const { theme } = useAppStore();
-  const [events, setEvents] = useState<CalendarEvent[]>(mockEvents);
+  const { 
+    events, 
+    loading, 
+    createEvent, 
+    deleteEvent,
+    getUpcoming,
+    getEventsForDate 
+  } = useEvents();
+  
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
   const [isAddingEvent, setIsAddingEvent] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [newEvent, setNewEvent] = useState({
     title: '',
     description: '',
@@ -78,230 +46,231 @@ export function Events() {
     all_day: false,
   });
 
-  const todayEvents = events.filter(
-    (e) => selectedDate && isSameDay(new Date(e.start_date), selectedDate)
-  );
+  const todayEvents = selectedDate ? getEventsForDate(selectedDate) : [];
+  const upcomingEvents = getUpcoming(30);
 
   const stats = [
-    { label: 'This Week', value: events.length },
-    { label: 'Pending RSVPs', value: invitations.length },
-    { label: 'Upcoming', value: 5 },
-    { label: 'This Month', value: 12 },
+    { label: 'This Week', value: getUpcoming(7).length.toString() },
+    { label: 'This Month', value: upcomingEvents.length.toString() },
+    { label: 'Today', value: getEventsForDate(new Date()).length.toString() },
+    { label: 'Total', value: events.length.toString() },
   ];
 
-  const addEvent = () => {
-    const event: CalendarEvent = {
-      id: Date.now().toString(),
-      user_id: '1',
-      ...newEvent,
-      description: newEvent.description || null,
+  const handleAddEvent = async () => {
+    if (!newEvent.title.trim()) return;
+    
+    setIsSubmitting(true);
+    await createEvent({
+      title: newEvent.title,
+      description: newEvent.description || undefined,
+      aspect: newEvent.aspect,
       start_date: (selectedDate || new Date()).toISOString(),
-      end_date: null,
-      created_at: new Date().toISOString(),
-    };
-    setEvents([event, ...events]);
+      all_day: newEvent.all_day,
+    });
+    setIsSubmitting(false);
     setIsAddingEvent(false);
     setNewEvent({ title: '', description: '', aspect: 'events', all_day: false });
   };
 
-  const getAspectColor = (aspectId: AspectType) => {
+  const handleDeleteEvent = async (eventId: string) => {
+    await deleteEvent(eventId);
+  };
+
+  const getAspectColor = (aspectId: string) => {
     return aspects.find((a) => a.id === aspectId)?.color || '#8B5CF6';
   };
+
+  // Highlight dates with events
+  const eventDates = events.map(e => new Date(e.start_date));
 
   return (
     <AspectLayout
       aspectId="events"
       stats={stats}
-      aiInsight="You have 2 pending invitations. Sarah's birthday party is this Saturday - consider RSVPing soon!"
+      aiInsight={events.length > 0 
+        ? `You have ${getUpcoming(7).length} event${getUpcoming(7).length !== 1 ? 's' : ''} coming up this week. ${upcomingEvents[0] ? `Next: ${upcomingEvents[0].title}` : ''}`
+        : 'Add your first event to start organizing your schedule!'
+      }
       onAddNew={() => setIsAddingEvent(true)}
       addNewLabel="Add Event"
     >
       <Tabs defaultValue="calendar" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="calendar">Calendar</TabsTrigger>
-          <TabsTrigger value="invitations">Invitations</TabsTrigger>
           <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
         </TabsList>
 
         <TabsContent value="calendar" className="mt-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <CardContent className="p-4">
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={setSelectedDate}
-                  className="rounded-md"
-                />
-              </CardContent>
-            </Card>
-
-            <div>
-              <h3 className={cn(
-                "font-semibold mb-4",
-                theme === 'light' ? "text-slate-900" : "text-white"
-              )}>
-                {selectedDate ? format(selectedDate, 'EEEE, MMMM d') : 'Select a date'}
-              </h3>
-              {todayEvents.length === 0 ? (
-                <Card className="border-dashed">
-                  <CardContent className="p-6 text-center">
-                    <p className={cn(
-                      "text-sm mb-4",
-                      theme === 'light' ? "text-slate-500" : "text-white/60"
-                    )}>
-                      No events on this day
-                    </p>
-                    <Button onClick={() => setIsAddingEvent(true)}>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Event
-                    </Button>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="space-y-3">
-                  {todayEvents.map((event) => (
-                    <Card key={event.id}>
-                      <CardContent className="p-4">
-                        <div className="flex items-start gap-3">
-                          <div
-                            className="w-1 h-full min-h-[40px] rounded-full"
-                            style={{ backgroundColor: getAspectColor(event.aspect) }}
-                          />
-                          <div className="flex-1">
-                            <h4 className={cn(
-                              "font-medium",
-                              theme === 'light' ? "text-slate-900" : "text-white"
-                            )}>
-                              {event.title}
-                            </h4>
-                            {event.description && (
-                              <p className={cn(
-                                "text-sm",
-                                theme === 'light' ? "text-slate-500" : "text-white/60"
-                              )}>
-                                {event.description}
-                              </p>
-                            )}
-                            <div className="flex items-center gap-2 mt-2">
-                              <Badge
-                                variant="secondary"
-                                style={{
-                                  backgroundColor: `${getAspectColor(event.aspect)}20`,
-                                  color: getAspectColor(event.aspect),
-                                }}
-                              >
-                                {aspects.find((a) => a.id === event.aspect)?.name}
-                              </Badge>
-                            </div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
             </div>
-          </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardContent className="p-4">
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={setSelectedDate}
+                    className="rounded-md"
+                    modifiers={{
+                      hasEvent: eventDates,
+                    }}
+                    modifiersStyles={{
+                      hasEvent: {
+                        fontWeight: 'bold',
+                        textDecoration: 'underline',
+                        textDecorationColor: '#8B5CF6',
+                      }
+                    }}
+                  />
+                </CardContent>
+              </Card>
+
+              <div>
+                <h3 className={cn(
+                  "font-semibold mb-4",
+                  theme === 'light' ? "text-slate-900" : "text-white"
+                )}>
+                  {selectedDate ? format(selectedDate, 'EEEE, MMMM d') : 'Select a date'}
+                </h3>
+                {todayEvents.length === 0 ? (
+                  <Card className="border-dashed">
+                    <CardContent className="p-6 text-center">
+                      <p className={cn(
+                        "text-sm mb-4",
+                        theme === 'light' ? "text-slate-500" : "text-white/60"
+                      )}>
+                        No events on this day
+                      </p>
+                      <Button onClick={() => setIsAddingEvent(true)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Event
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className="space-y-3">
+                    {todayEvents.map((event) => (
+                      <Card key={event.id} className="group">
+                        <CardContent className="p-4">
+                          <div className="flex items-start gap-3">
+                            <div
+                              className="w-1 h-full min-h-[40px] rounded-full"
+                              style={{ backgroundColor: getAspectColor(event.aspect) }}
+                            />
+                            <div className="flex-1">
+                              <h4 className={cn(
+                                "font-medium",
+                                theme === 'light' ? "text-slate-900" : "text-white"
+                              )}>
+                                {event.title}
+                              </h4>
+                              {event.description && (
+                                <p className={cn(
+                                  "text-sm",
+                                  theme === 'light' ? "text-slate-500" : "text-white/60"
+                                )}>
+                                  {event.description}
+                                </p>
+                              )}
+                              <div className="flex items-center gap-2 mt-2">
+                                <Badge
+                                  variant="secondary"
+                                  style={{
+                                    backgroundColor: `${getAspectColor(event.aspect)}20`,
+                                    color: getAspectColor(event.aspect),
+                                  }}
+                                >
+                                  {aspects.find((a) => a.id === event.aspect)?.name || event.aspect}
+                                </Badge>
+                              </div>
+                            </div>
+                            <Button 
+                              variant="ghost" 
+                              size="icon"
+                              className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                              onClick={() => handleDeleteEvent(event.id)}
+                            >
+                              <Trash2 className="h-4 w-4 text-red-500" />
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </TabsContent>
 
-        <TabsContent value="invitations" className="mt-6">
-          {invitations.length === 0 ? (
+        <TabsContent value="upcoming" className="mt-6">
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : upcomingEvents.length === 0 ? (
             <EmptyState
               icon={Bell}
-              title="No pending invitations"
-              description="When you receive event invitations, they'll appear here."
+              title="No upcoming events"
+              description="Add events to your calendar to see them here."
               actionLabel="Add Event"
               onAction={() => setIsAddingEvent(true)}
             />
           ) : (
             <div className="space-y-4">
-              {invitations.map((invite, index) => (
-                <Card key={index} className="hover:border-primary/50 transition-colors">
+              {upcomingEvents.map((event) => (
+                <Card key={event.id} className="hover:border-primary/50 transition-colors group">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-violet-500/20 flex items-center justify-center">
-                        <CalendarDays className="h-6 w-6 text-violet-500" />
+                      <div
+                        className="w-12 h-12 rounded-xl flex items-center justify-center"
+                        style={{ backgroundColor: `${getAspectColor(event.aspect)}20` }}
+                      >
+                        <CalendarDays className="h-6 w-6" style={{ color: getAspectColor(event.aspect) }} />
                       </div>
                       <div className="flex-1">
                         <h4 className={cn(
                           "font-medium",
                           theme === 'light' ? "text-slate-900" : "text-white"
                         )}>
-                          {invite.title}
+                          {event.title}
                         </h4>
-                        <div className={cn(
-                          "flex items-center gap-3 mt-1 text-sm",
-                          theme === 'light' ? "text-slate-500" : "text-white/60"
-                        )}>
-                          <span className="flex items-center gap-1">
+                        <div className="flex items-center gap-3 mt-1">
+                          <span className={cn(
+                            "text-sm flex items-center gap-1",
+                            theme === 'light' ? "text-slate-500" : "text-white/60"
+                          )}>
                             <Clock className="h-3 w-3" />
-                            {invite.date}
+                            {format(new Date(event.start_date), 'MMM d, h:mm a')}
                           </span>
-                          <span>by {invite.host}</span>
+                          <Badge
+                            variant="secondary"
+                            style={{
+                              backgroundColor: `${getAspectColor(event.aspect)}20`,
+                              color: getAspectColor(event.aspect),
+                            }}
+                          >
+                            {aspects.find((a) => a.id === event.aspect)?.name || event.aspect}
+                          </Badge>
                         </div>
                       </div>
-                      <div className="flex gap-2">
-                        <Button size="sm" className="bg-green-500 hover:bg-green-600">
-                          <Check className="h-4 w-4 mr-1" />
-                          Accept
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          <X className="h-4 w-4 mr-1" />
-                          Decline
-                        </Button>
-                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => handleDeleteEvent(event.id)}
+                      >
+                        <Trash2 className="h-4 w-4 text-red-500" />
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
               ))}
             </div>
           )}
-        </TabsContent>
-
-        <TabsContent value="upcoming" className="mt-6">
-          <div className="space-y-4">
-            {events.map((event) => (
-              <Card key={event.id} className="hover:border-primary/50 transition-colors">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-4">
-                    <div
-                      className="w-12 h-12 rounded-xl flex items-center justify-center"
-                      style={{ backgroundColor: `${getAspectColor(event.aspect)}20` }}
-                    >
-                      <CalendarDays className="h-6 w-6" style={{ color: getAspectColor(event.aspect) }} />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className={cn(
-                        "font-medium",
-                        theme === 'light' ? "text-slate-900" : "text-white"
-                      )}>
-                        {event.title}
-                      </h4>
-                      <div className="flex items-center gap-3 mt-1">
-                        <span className={cn(
-                          "text-sm flex items-center gap-1",
-                          theme === 'light' ? "text-slate-500" : "text-white/60"
-                        )}>
-                          <Clock className="h-3 w-3" />
-                          {format(new Date(event.start_date), 'MMM d, h:mm a')}
-                        </span>
-                        <Badge
-                          variant="secondary"
-                          style={{
-                            backgroundColor: `${getAspectColor(event.aspect)}20`,
-                            color: getAspectColor(event.aspect),
-                          }}
-                        >
-                          {aspects.find((a) => a.id === event.aspect)?.name}
-                        </Badge>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
         </TabsContent>
       </Tabs>
 
@@ -327,6 +296,12 @@ export function Events() {
                 value={newEvent.description}
                 onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Date</Label>
+              <p className="text-sm text-muted-foreground">
+                {selectedDate ? format(selectedDate, 'EEEE, MMMM d, yyyy') : 'Select a date on the calendar'}
+              </p>
             </div>
             <div className="space-y-2">
               <Label>Category</Label>
@@ -357,10 +332,14 @@ export function Events() {
             </div>
             <Button
               className="w-full bg-gradient-to-r from-violet-600 to-pink-600"
-              onClick={addEvent}
-              disabled={!newEvent.title.trim()}
+              onClick={handleAddEvent}
+              disabled={!newEvent.title.trim() || isSubmitting}
             >
-              <Plus className="h-4 w-4 mr-2" />
+              {isSubmitting ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4 mr-2" />
+              )}
               Add Event
             </Button>
           </div>
@@ -369,6 +348,3 @@ export function Events() {
     </AspectLayout>
   );
 }
-
-
-

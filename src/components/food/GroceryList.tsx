@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   ShoppingCart, 
   Plus, 
@@ -14,6 +16,9 @@ import {
   Package,
   ChefHat,
   Loader2,
+  Search,
+  Archive,
+  CheckCircle,
 } from 'lucide-react';
 import { useGrocery, type GroceryItem } from '@/hooks/useGrocery';
 import { ExportShareButtons } from './ExportShareButtons';
@@ -27,6 +32,101 @@ import { useInventory } from '@/hooks/useInventory';
 import type { Recipe } from '@/hooks/useRecipes';
 import { cn } from '@/lib/utils';
 
+// Common quick-add items
+const QUICK_ADD_ITEMS = [
+  { name: 'Milk', emoji: '🥛', category: 'dairy' },
+  { name: 'Bread', emoji: '🍞', category: 'pantry' },
+  { name: 'Eggs', emoji: '🥚', category: 'dairy' },
+  { name: 'Butter', emoji: '🧈', category: 'dairy' },
+  { name: 'Cheese', emoji: '🧀', category: 'dairy' },
+  { name: 'Bananas', emoji: '🍌', category: 'produce' },
+  { name: 'Chicken', emoji: '🍗', category: 'meat' },
+  { name: 'Rice', emoji: '🍚', category: 'pantry' },
+];
+
+// Full categorized item list for picker modal
+const CATEGORIZED_ITEMS: Record<string, { name: string; emoji: string }[]> = {
+  'Produce': [
+    { name: 'Bananas', emoji: '🍌' },
+    { name: 'Apples', emoji: '🍎' },
+    { name: 'Oranges', emoji: '🍊' },
+    { name: 'Lemons', emoji: '🍋' },
+    { name: 'Avocados', emoji: '🥑' },
+    { name: 'Tomatoes', emoji: '🍅' },
+    { name: 'Onions', emoji: '🧅' },
+    { name: 'Garlic', emoji: '🧄' },
+    { name: 'Potatoes', emoji: '🥔' },
+    { name: 'Carrots', emoji: '🥕' },
+    { name: 'Broccoli', emoji: '🥦' },
+    { name: 'Spinach', emoji: '🥬' },
+    { name: 'Lettuce', emoji: '🥗' },
+    { name: 'Peppers', emoji: '🫑' },
+    { name: 'Mushrooms', emoji: '🍄' },
+    { name: 'Cucumbers', emoji: '🥒' },
+  ],
+  'Dairy': [
+    { name: 'Milk', emoji: '🥛' },
+    { name: 'Eggs', emoji: '🥚' },
+    { name: 'Butter', emoji: '🧈' },
+    { name: 'Cheese', emoji: '🧀' },
+    { name: 'Yogurt', emoji: '🥛' },
+    { name: 'Cream', emoji: '🥛' },
+    { name: 'Sour Cream', emoji: '🥛' },
+    { name: 'Cream Cheese', emoji: '🧀' },
+  ],
+  'Meat': [
+    { name: 'Chicken', emoji: '🍗' },
+    { name: 'Beef', emoji: '🥩' },
+    { name: 'Pork', emoji: '🥓' },
+    { name: 'Bacon', emoji: '🥓' },
+    { name: 'Ground Beef', emoji: '🍖' },
+    { name: 'Salmon', emoji: '🐟' },
+    { name: 'Shrimp', emoji: '🦐' },
+    { name: 'Turkey', emoji: '🦃' },
+  ],
+  'Pantry': [
+    { name: 'Bread', emoji: '🍞' },
+    { name: 'Rice', emoji: '🍚' },
+    { name: 'Pasta', emoji: '🍝' },
+    { name: 'Flour', emoji: '🌾' },
+    { name: 'Sugar', emoji: '🍬' },
+    { name: 'Salt', emoji: '🧂' },
+    { name: 'Olive Oil', emoji: '🫒' },
+    { name: 'Vegetable Oil', emoji: '🛢️' },
+    { name: 'Cereal', emoji: '🥣' },
+    { name: 'Oatmeal', emoji: '🥣' },
+    { name: 'Peanut Butter', emoji: '🥜' },
+    { name: 'Honey', emoji: '🍯' },
+    { name: 'Beans', emoji: '🫘' },
+    { name: 'Canned Tomatoes', emoji: '🥫' },
+  ],
+  'Frozen': [
+    { name: 'Ice Cream', emoji: '🍨' },
+    { name: 'Frozen Pizza', emoji: '🍕' },
+    { name: 'Frozen Vegetables', emoji: '🥦' },
+    { name: 'Frozen Berries', emoji: '🫐' },
+    { name: 'Frozen Chicken', emoji: '🍗' },
+  ],
+  'Beverages': [
+    { name: 'Water', emoji: '💧' },
+    { name: 'Orange Juice', emoji: '🍊' },
+    { name: 'Coffee', emoji: '☕' },
+    { name: 'Tea', emoji: '🍵' },
+    { name: 'Soda', emoji: '🥤' },
+    { name: 'Beer', emoji: '🍺' },
+    { name: 'Wine', emoji: '🍷' },
+  ],
+  'Snacks': [
+    { name: 'Chips', emoji: '🍟' },
+    { name: 'Crackers', emoji: '🍘' },
+    { name: 'Nuts', emoji: '🥜' },
+    { name: 'Cookies', emoji: '🍪' },
+    { name: 'Chocolate', emoji: '🍫' },
+    { name: 'Popcorn', emoji: '🍿' },
+    { name: 'Granola Bars', emoji: '🍫' },
+  ],
+};
+
 interface GroceryListProps {
   recipes: Recipe[];
   selectedRecipeIds?: string[];
@@ -36,12 +136,14 @@ export function GroceryList({ recipes, selectedRecipeIds = [] }: GroceryListProp
   const {
     groceryList,
     loading,
+    allItemsChecked,
     addItem,
     removeItem,
     toggleItem,
     addFromRecipes,
     clearChecked,
     clearAll,
+    archiveList,
   } = useGrocery();
   
   const { items: inventoryItems } = useInventory();
@@ -50,6 +152,59 @@ export function GroceryList({ recipes, selectedRecipeIds = [] }: GroceryListProp
   const [newItemQty, setNewItemQty] = useState('1');
   const [newItemUnit, setNewItemUnit] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [pickerSearch, setPickerSearch] = useState('');
+  const [pickerQuantity, setPickerQuantity] = useState(1);
+  const [isArchiving, setIsArchiving] = useState(false);
+  const [showArchivePrompt, setShowArchivePrompt] = useState(false);
+
+  // Handle archive
+  const handleArchive = async () => {
+    setIsArchiving(true);
+    await archiveList();
+    setIsArchiving(false);
+    setShowArchivePrompt(false);
+  };
+
+  // Quick add handler
+  const handleQuickAdd = async (itemName: string, category: string) => {
+    await addItem({
+      name: itemName,
+      quantity: 1,
+      unit: 'item',
+      category,
+    });
+  };
+
+  // Add from picker modal
+  const handlePickerAdd = async (itemName: string, category: string) => {
+    await addItem({
+      name: itemName,
+      quantity: pickerQuantity,
+      unit: 'item',
+      category,
+    });
+    setPickerQuantity(1);
+  };
+
+  // Filter items in picker based on search
+  const getFilteredPickerItems = () => {
+    if (!pickerSearch.trim()) return CATEGORIZED_ITEMS;
+    
+    const searchLower = pickerSearch.toLowerCase();
+    const filtered: typeof CATEGORIZED_ITEMS = {};
+    
+    Object.entries(CATEGORIZED_ITEMS).forEach(([category, items]) => {
+      const matchingItems = items.filter(item => 
+        item.name.toLowerCase().includes(searchLower)
+      );
+      if (matchingItems.length > 0) {
+        filtered[category] = matchingItems;
+      }
+    });
+    
+    return filtered;
+  };
 
   const handleAddItem = async () => {
     if (!newItemName.trim()) return;
@@ -172,6 +327,37 @@ export function GroceryList({ recipes, selectedRecipeIds = [] }: GroceryListProp
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* Quick Add Buttons */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground">Quick Add</span>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => setIsPickerOpen(true)}
+                className="h-7 text-xs"
+              >
+                <Plus className="h-3 w-3 mr-1" />
+                More Items
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {QUICK_ADD_ITEMS.map((item) => (
+                <Button
+                  key={item.name}
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs hover:bg-green-500/10 hover:border-green-500/50"
+                  onClick={() => handleQuickAdd(item.name, item.category)}
+                >
+                  <span className="mr-1">{item.emoji}</span>
+                  {item.name}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          {/* Manual Add */}
           <div className="flex gap-2">
             <Input
               placeholder="Item name"
@@ -283,15 +469,120 @@ export function GroceryList({ recipes, selectedRecipeIds = [] }: GroceryListProp
               )}
 
               {/* Actions */}
-              <div className="flex justify-end pt-4 border-t">
-                <Button variant="outline" size="sm" onClick={clearAll}>
-                  Clear All
-                </Button>
+              <div className="flex justify-between items-center pt-4 border-t">
+                <div className="flex gap-2">
+                  {allItemsChecked && (
+                    <div className="flex items-center gap-2 text-sm text-green-600">
+                      <CheckCircle className="h-4 w-4" />
+                      <span>All done!</span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleArchive}
+                    disabled={isArchiving || items.length === 0}
+                    className="text-green-600 border-green-600/30 hover:bg-green-500/10"
+                  >
+                    {isArchiving ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                    ) : (
+                      <Archive className="h-4 w-4 mr-1" />
+                    )}
+                    Archive List
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={clearAll}>
+                    Clear All
+                  </Button>
+                </div>
               </div>
             </>
           )}
         </CardContent>
       </Card>
+
+      {/* Item Picker Modal */}
+      <Dialog open={isPickerOpen} onOpenChange={setIsPickerOpen}>
+        <DialogContent className="max-w-lg max-h-[80vh]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5 text-green-500" />
+              Add Items to List
+            </DialogTitle>
+          </DialogHeader>
+          
+          {/* Search and Quantity */}
+          <div className="space-y-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search items..."
+                value={pickerSearch}
+                onChange={(e) => setPickerSearch(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Quantity:</span>
+              <div className="flex items-center gap-1">
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  className="h-8 w-8"
+                  onClick={() => setPickerQuantity(Math.max(1, pickerQuantity - 1))}
+                >
+                  -
+                </Button>
+                <span className="w-8 text-center font-medium">{pickerQuantity}</span>
+                <Button 
+                  variant="outline" 
+                  size="icon" 
+                  className="h-8 w-8"
+                  onClick={() => setPickerQuantity(pickerQuantity + 1)}
+                >
+                  +
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Categorized Items */}
+          <ScrollArea className="h-[400px] pr-4">
+            <div className="space-y-4">
+              {Object.entries(getFilteredPickerItems()).map(([category, categoryItems]) => (
+                <div key={category}>
+                  <h4 className="text-sm font-semibold text-muted-foreground mb-2">{category}</h4>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {categoryItems.map((item) => (
+                      <Button
+                        key={item.name}
+                        variant="outline"
+                        size="sm"
+                        className="h-auto py-2 px-2 text-xs justify-start hover:bg-green-500/10 hover:border-green-500/50"
+                        onClick={() => handlePickerAdd(item.name, category.toLowerCase())}
+                      >
+                        <span className="mr-1.5 text-base">{item.emoji}</span>
+                        <span className="truncate">{item.name}</span>
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              
+              {Object.keys(getFilteredPickerItems()).length === 0 && (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No items match "{pickerSearch}"</p>
+                  <p className="text-xs mt-1">Try a different search term</p>
+                </div>
+              )}
+            </div>
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

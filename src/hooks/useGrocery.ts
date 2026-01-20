@@ -427,10 +427,131 @@ export function useGrocery() {
     }
   }, [groceryList]);
 
+  // Archive the current grocery list
+  const archiveList = useCallback(async (): Promise<boolean> => {
+    if (!groceryList || groceryList.items.length === 0) return false;
+
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) throw new Error('Not authenticated');
+
+      const checkedItems = groceryList.items.filter(i => i.checked);
+      const totalItems = groceryList.items.length;
+
+      // Create archive entry
+      const { error: archiveError } = await supabase
+        .from('grocery_list_archive')
+        .insert({
+          user_id: user.id,
+          original_list_id: groceryList.id,
+          name: groceryList.name,
+          items: groceryList.items,
+          total_items: totalItems,
+          checked_items: checkedItems.length,
+          created_at: groceryList.created_at,
+        });
+
+      if (archiveError) throw archiveError;
+
+      // Clear the current list
+      const { data, error } = await supabase
+        .from('grocery_lists')
+        .update({
+          items: [],
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', groceryList.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      setGroceryList(data);
+      return true;
+    } catch (err) {
+      console.error('Error archiving list:', err);
+      setError('Failed to archive list');
+      return false;
+    }
+  }, [groceryList]);
+
+  // Get archived lists
+  const getArchivedLists = useCallback(async (limit: number = 10): Promise<GroceryList[]> => {
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) return [];
+
+      const { data, error } = await supabase
+        .from('grocery_list_archive')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('completed_at', { ascending: false })
+        .limit(limit);
+
+      if (error) throw error;
+      
+      return (data || []) as unknown as GroceryList[];
+    } catch (err) {
+      console.error('Error fetching archived lists:', err);
+      return [];
+    }
+  }, []);
+
+  // Get frequently purchased items for AI suggestions
+  const getSuggestedItems = useCallback(async (limit: number = 10): Promise<{ name: string; category: string; count: number }[]> => {
+    try {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) return [];
+
+      // Get archived lists
+      const { data: archives, error } = await supabase
+        .from('grocery_list_archive')
+        .select('items')
+        .eq('user_id', user.id)
+        .order('completed_at', { ascending: false })
+        .limit(20);
+
+      if (error) throw error;
+
+      // Count item frequency
+      const itemCounts: Record<string, { name: string; category: string; count: number }> = {};
+      
+      for (const archive of archives || []) {
+        const items = archive.items as GroceryItem[];
+        for (const item of items) {
+          const key = item.name.toLowerCase();
+          if (!itemCounts[key]) {
+            itemCounts[key] = { name: item.name, category: item.category || 'other', count: 0 };
+          }
+          itemCounts[key].count++;
+        }
+      }
+
+      // Sort by frequency and return top items
+      return Object.values(itemCounts)
+        .sort((a, b) => b.count - a.count)
+        .slice(0, limit);
+    } catch (err) {
+      console.error('Error getting suggested items:', err);
+      return [];
+    }
+  }, []);
+
+  // Check if all items are checked (for auto-archive)
+  const allItemsChecked = groceryList?.items.length > 0 && 
+    groceryList.items.every(item => item.checked);
+
   return {
     groceryList,
     loading,
     error,
+    allItemsChecked,
     fetchActiveGroceryList,
     createGroceryList,
     addItem,
@@ -439,6 +560,9 @@ export function useGrocery() {
     addFromRecipes,
     clearChecked,
     clearAll,
+    archiveList,
+    getArchivedLists,
+    getSuggestedItems,
   };
 }
 

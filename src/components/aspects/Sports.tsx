@@ -18,35 +18,13 @@ import {
   Calendar,
   Plus,
   Timer,
+  Trash2,
+  Loader2,
 } from 'lucide-react';
-import type { SportsActivity } from '@/types/database';
 import { format } from 'date-fns';
 import { WeightHeightTracker } from '@/components/WeightHeightTracker';
-
-const mockActivities: SportsActivity[] = [
-  {
-    id: '1',
-    user_id: '1',
-    sport: 'Basketball',
-    duration_minutes: 90,
-    location: 'City Sports Center',
-    with_team: true,
-    notes: 'Weekly game night',
-    activity_date: new Date().toISOString(),
-    created_at: new Date().toISOString(),
-  },
-  {
-    id: '2',
-    user_id: '1',
-    sport: 'Tennis',
-    duration_minutes: 60,
-    location: 'Tennis Club',
-    with_team: false,
-    notes: null,
-    activity_date: new Date(Date.now() - 172800000).toISOString(),
-    created_at: new Date(Date.now() - 172800000).toISOString(),
-  },
-];
+import { useSports } from '@/hooks/useSports';
+import { useEvents } from '@/hooks/useEvents';
 
 const popularSports = [
   { name: 'Basketball', emoji: '🏀' },
@@ -55,18 +33,23 @@ const popularSports = [
   { name: 'Swimming', emoji: '🏊' },
   { name: 'Golf', emoji: '⛳' },
   { name: 'Volleyball', emoji: '🏐' },
-];
-
-const upcomingEvents = [
-  { name: 'Weekly Basketball', date: 'Tomorrow 7PM', location: 'City Sports Center' },
-  { name: 'Tennis Match', date: 'Saturday 10AM', location: 'Tennis Club' },
-  { name: 'Beach Volleyball', date: 'Sunday 3PM', location: 'Ocean Beach' },
+  { name: 'Hockey', emoji: '🏒' },
+  { name: 'Baseball', emoji: '⚾' },
 ];
 
 export function Sports() {
   const { theme } = useAppStore();
-  const [activities, setActivities] = useState<SportsActivity[]>(mockActivities);
+  const { 
+    activities, 
+    loading, 
+    logActivity, 
+    deleteActivity,
+    getMonthlyStats 
+  } = useSports();
+  const { getEventsByAspect } = useEvents();
+  
   const [isAddingActivity, setIsAddingActivity] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [newActivity, setNewActivity] = useState({
     sport: '',
     duration_minutes: 60,
@@ -75,31 +58,55 @@ export function Sports() {
     notes: '',
   });
 
+  // Get real stats from hook
+  const monthlyStats = getMonthlyStats();
+  const sportsEvents = getEventsByAspect('sports');
+  
   const stats = [
-    { label: 'This Month', value: '8 activities' },
-    { label: 'Favorite Sport', value: 'Basketball' },
-    { label: 'Total Hours', value: '12h', trend: 'up' as const },
-    { label: 'Team Games', value: '5' },
+    { label: 'This Month', value: `${monthlyStats.totalActivities} activities` },
+    { label: 'Favorite Sport', value: monthlyStats.favoriteSport || 'N/A' },
+    { label: 'Total Hours', value: `${Math.round(monthlyStats.totalMinutes / 60)}h`, trend: 'up' as const },
+    { label: 'Unique Sports', value: Object.keys(monthlyStats.sportCounts).length.toString() },
   ];
 
-  const addActivity = () => {
-    const activity: SportsActivity = {
-      id: Date.now().toString(),
-      user_id: '1',
-      ...newActivity,
-      activity_date: new Date().toISOString(),
-      created_at: new Date().toISOString(),
-    };
-    setActivities([activity, ...activities]);
+  const handleAddActivity = async () => {
+    if (!newActivity.sport.trim()) return;
+    
+    setIsSubmitting(true);
+    await logActivity({
+      sport: newActivity.sport,
+      duration_minutes: newActivity.duration_minutes,
+      location: newActivity.location || undefined,
+      with_team: newActivity.with_team,
+      notes: newActivity.notes || undefined,
+    });
+    setIsSubmitting(false);
     setIsAddingActivity(false);
     setNewActivity({ sport: '', duration_minutes: 60, location: '', with_team: false, notes: '' });
   };
+
+  const handleDelete = async (id: string) => {
+    await deleteActivity(id);
+  };
+
+  // Build sport breakdown from real data
+  const sportBreakdown = Object.entries(monthlyStats.sportCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4)
+    .map(([sport, count]) => ({
+      sport,
+      emoji: popularSports.find(s => s.name === sport)?.emoji || '🏆',
+      count,
+    }));
 
   return (
     <AspectLayout
       aspectId="sports"
       stats={stats}
-      aiInsight="You've been playing more team sports lately! This is great for social health. There's a pickup basketball game near you tomorrow."
+      aiInsight={activities.length > 0 
+        ? `You've played ${monthlyStats.totalActivities} times this month! ${monthlyStats.favoriteSport ? `${monthlyStats.favoriteSport} is your top sport.` : 'Keep it up!'}`
+        : 'Start logging your sports activities to track your active lifestyle!'
+      }
       onAddNew={() => setIsAddingActivity(true)}
       addNewLabel="Log Activity"
     >
@@ -112,7 +119,11 @@ export function Sports() {
         </TabsList>
 
         <TabsContent value="activities" className="mt-6">
-          {activities.length === 0 ? (
+          {loading ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : activities.length === 0 ? (
             <EmptyState
               icon={Trophy}
               title="No sports activities yet"
@@ -123,7 +134,7 @@ export function Sports() {
           ) : (
             <div className="space-y-4">
               {activities.map((activity) => (
-                <Card key={activity.id} className="hover:border-primary/50 transition-colors">
+                <Card key={activity.id} className="hover:border-primary/50 transition-colors group">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-4">
                       <div className="w-12 h-12 rounded-xl bg-yellow-500/20 flex items-center justify-center text-2xl">
@@ -137,13 +148,15 @@ export function Sports() {
                           {activity.sport}
                         </h4>
                         <div className="flex items-center gap-3 mt-1 flex-wrap">
-                          <span className={cn(
-                            "text-sm flex items-center gap-1",
-                            theme === 'light' ? "text-slate-500" : "text-white/60"
-                          )}>
-                            <Timer className="h-3 w-3" />
-                            {activity.duration_minutes} min
-                          </span>
+                          {activity.duration_minutes && (
+                            <span className={cn(
+                              "text-sm flex items-center gap-1",
+                              theme === 'light' ? "text-slate-500" : "text-white/60"
+                            )}>
+                              <Timer className="h-3 w-3" />
+                              {activity.duration_minutes} min
+                            </span>
+                          )}
                           {activity.location && (
                             <span className={cn(
                               "text-sm flex items-center gap-1",
@@ -161,12 +174,22 @@ export function Sports() {
                           )}
                         </div>
                       </div>
-                      <span className={cn(
-                        "text-sm",
-                        theme === 'light' ? "text-slate-500" : "text-white/60"
-                      )}>
-                        {format(new Date(activity.activity_date), 'MMM d')}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span className={cn(
+                          "text-sm",
+                          theme === 'light' ? "text-slate-500" : "text-white/60"
+                        )}>
+                          {format(new Date(activity.activity_date), 'MMM d')}
+                        </span>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => handleDelete(activity.id)}
+                        >
+                          <Trash2 className="h-4 w-4 text-red-500" />
+                        </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -176,43 +199,45 @@ export function Sports() {
         </TabsContent>
 
         <TabsContent value="events" className="mt-6">
-          <div className="space-y-4">
-            {upcomingEvents.map((event, index) => (
-              <Card key={index} className="hover:border-primary/50 transition-colors">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-violet-500/20 flex items-center justify-center">
-                      <Calendar className="h-6 w-6 text-violet-500" />
-                    </div>
-                    <div className="flex-1">
-                      <h4 className={cn(
-                        "font-medium",
-                        theme === 'light' ? "text-slate-900" : "text-white"
-                      )}>
-                        {event.name}
-                      </h4>
-                      <div className="flex items-center gap-3 mt-1">
-                        <span className={cn(
-                          "text-sm",
-                          theme === 'light' ? "text-slate-500" : "text-white/60"
+          {sportsEvents.length === 0 ? (
+            <EmptyState
+              icon={Calendar}
+              title="No upcoming sports events"
+              description="Schedule games and sports events to stay organized."
+              actionLabel="Schedule Event"
+              onAction={() => {}}
+            />
+          ) : (
+            <div className="space-y-4">
+              {sportsEvents.map((event) => (
+                <Card key={event.id} className="hover:border-primary/50 transition-colors">
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-violet-500/20 flex items-center justify-center">
+                        <Calendar className="h-6 w-6 text-violet-500" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className={cn(
+                          "font-medium",
+                          theme === 'light' ? "text-slate-900" : "text-white"
                         )}>
-                          {event.date}
-                        </span>
-                        <span className={cn(
-                          "text-sm flex items-center gap-1",
-                          theme === 'light' ? "text-slate-500" : "text-white/60"
-                        )}>
-                          <MapPin className="h-3 w-3" />
-                          {event.location}
-                        </span>
+                          {event.title}
+                        </h4>
+                        <div className="flex items-center gap-3 mt-1">
+                          <span className={cn(
+                            "text-sm",
+                            theme === 'light' ? "text-slate-500" : "text-white/60"
+                          )}>
+                            {format(new Date(event.start_date), 'EEE, MMM d h:mm a')}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                    <Button size="sm">Join</Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
         </TabsContent>
 
         <TabsContent value="stats" className="mt-6">
@@ -226,20 +251,26 @@ export function Sports() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {popularSports.slice(0, 4).map((sport, i) => (
-                    <div key={sport.name} className="flex items-center gap-3">
-                      <span className="text-xl">{sport.emoji}</span>
-                      <span className={cn(
-                        "flex-1",
-                        theme === 'light' ? "text-slate-900" : "text-white"
-                      )}>
-                        {sport.name}
-                      </span>
-                      <Badge variant="secondary">{[5, 3, 2, 1][i]} sessions</Badge>
-                    </div>
-                  ))}
-                </div>
+                {sportBreakdown.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-4">
+                    Log some activities to see your breakdown
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {sportBreakdown.map((sport) => (
+                      <div key={sport.sport} className="flex items-center gap-3">
+                        <span className="text-xl">{sport.emoji}</span>
+                        <span className={cn(
+                          "flex-1",
+                          theme === 'light' ? "text-slate-900" : "text-white"
+                        )}>
+                          {sport.sport}
+                        </span>
+                        <Badge variant="secondary">{sport.count} sessions</Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -254,11 +285,14 @@ export function Sports() {
               <CardContent>
                 <div className="grid grid-cols-3 gap-4">
                   {[
-                    { emoji: '🏆', label: '10 Games' },
-                    { emoji: '⚡', label: 'Team Player' },
-                    { emoji: '🎯', label: 'Consistent' },
+                    { emoji: '🏆', label: `${monthlyStats.totalActivities} Games`, unlocked: monthlyStats.totalActivities >= 1 },
+                    { emoji: '⚡', label: 'Team Player', unlocked: activities.some(a => a.with_team) },
+                    { emoji: '🎯', label: 'Consistent', unlocked: monthlyStats.totalActivities >= 4 },
                   ].map((achievement) => (
-                    <div key={achievement.label} className="text-center">
+                    <div 
+                      key={achievement.label} 
+                      className={cn("text-center", !achievement.unlocked && "opacity-40")}
+                    >
                       <div className="text-3xl mb-1">{achievement.emoji}</div>
                       <span className={cn(
                         "text-xs",
@@ -332,10 +366,14 @@ export function Sports() {
             </div>
             <Button
               className="w-full bg-gradient-to-r from-violet-600 to-pink-600"
-              onClick={addActivity}
-              disabled={!newActivity.sport.trim()}
+              onClick={handleAddActivity}
+              disabled={!newActivity.sport.trim() || isSubmitting}
             >
-              <Plus className="h-4 w-4 mr-2" />
+              {isSubmitting ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4 mr-2" />
+              )}
               Log Activity
             </Button>
           </div>
@@ -344,6 +382,3 @@ export function Sports() {
     </AspectLayout>
   );
 }
-
-
-
