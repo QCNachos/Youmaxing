@@ -65,7 +65,16 @@ export function useBusiness() {
       const { data, error: fetchError } = await query;
 
       if (fetchError) throw fetchError;
-      setProjects(data || []);
+      
+      // Transform data to ensure proper types
+      const transformedData: BusinessProject[] = (data || []).map(item => ({
+        ...item,
+        status: (item.status || 'idea') as ProjectStatus,
+        priority: (item.priority || 'medium') as ProjectPriority,
+        created_at: item.created_at || new Date().toISOString(),
+      }));
+      
+      setProjects(transformedData);
     } catch (err) {
       console.error('Error fetching projects:', err);
       setError('Failed to load projects');
@@ -140,8 +149,16 @@ export function useBusiness() {
 
       if (error) throw error;
       
-      setProjects(prev => [data, ...prev]);
-      return data;
+      // Transform to ensure proper types
+      const transformedData: BusinessProject = {
+        ...data,
+        status: (data.status || 'idea') as ProjectStatus,
+        priority: (data.priority || 'medium') as ProjectPriority,
+        created_at: data.created_at || new Date().toISOString(),
+      };
+      
+      setProjects(prev => [transformedData, ...prev]);
+      return transformedData;
     } catch (err) {
       console.error('Error creating project:', err);
       setError('Failed to create project');

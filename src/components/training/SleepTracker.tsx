@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -344,7 +344,7 @@ function AddSleepDialog({
   setNewLog: (log: typeof newLog) => void;
   onSave: () => void;
   saving: boolean;
-  renderStars: (rating: number | null, interactive?: boolean, onChange?: (rating: number) => void) => JSX.Element;
+  renderStars: (rating: number | null, interactive?: boolean, onChange?: (rating: number) => void) => React.ReactNode;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

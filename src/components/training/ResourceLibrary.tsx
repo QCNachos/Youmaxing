@@ -432,8 +432,8 @@ function AddResourceDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  newResource: { title: string; url: string; training_type: string; body_parts: BodyPart[]; notes: string };
-  setNewResource: (resource: typeof newResource) => void;
+  newResource: { title: string; url: string; training_type: TrainingType | ''; body_parts: BodyPart[]; notes: string };
+  setNewResource: (resource: { title: string; url: string; training_type: TrainingType | ''; body_parts: BodyPart[]; notes: string }) => void;
   onSave: () => void;
   saving: boolean;
   toggleBodyPart: (part: BodyPart) => void;
@@ -474,7 +474,7 @@ function AddResourceDialog({
             <select
               className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm"
               value={newResource.training_type}
-              onChange={(e) => setNewResource({ ...newResource, training_type: e.target.value as TrainingType })}
+              onChange={(e) => setNewResource({ ...newResource, training_type: (e.target.value || '') as TrainingType | '' })}
             >
               <option value="">Select type...</option>
               {TRAINING_TYPES.map((type) => (

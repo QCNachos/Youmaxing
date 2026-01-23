@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { isSupabaseConfigured } from '@/lib/env';
+import type { Json } from '@/types/supabase';
 
 // Type for message validation
 interface ConversationMessage {
@@ -10,7 +11,7 @@ interface ConversationMessage {
   timestamp: string;
   isFromUser: boolean;
   aspectId?: string;
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, Json | undefined>;
 }
 
 // Simple validation function (avoiding Zod issues)
@@ -102,8 +103,8 @@ export async function POST(request: NextRequest) {
         {
           user_id: user.id,
           aspect,
-          messages: trimmedMessages,
-          updated_at: new Date().toISOString(),
+          messages: trimmedMessages as unknown as Json,
+          created_at: new Date().toISOString(),
         },
         {
           onConflict: 'user_id,aspect',

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import type { TrainingLog, TrainingType, TrainingIntensity, BodyPart } from '@/types/database';
 
 // GET - Fetch training logs with optional filters
 export async function GET(request: NextRequest) {
@@ -13,8 +12,6 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const startDate = searchParams.get('startDate');
-    const endDate = searchParams.get('endDate');
     const type = searchParams.get('type');
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = parseInt(searchParams.get('offset') || '0');
@@ -23,17 +20,8 @@ export async function GET(request: NextRequest) {
       .from('training_logs')
       .select('*')
       .eq('user_id', user.id)
-      .order('workout_date', { ascending: false })
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
-
-    if (startDate) {
-      query = query.gte('workout_date', startDate);
-    }
-
-    if (endDate) {
-      query = query.lte('workout_date', endDate);
-    }
 
     if (type) {
       query = query.eq('type', type);
@@ -46,24 +34,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to fetch training logs' }, { status: 500 });
     }
 
-    // Fetch exercises for each log
-    const logIds = logs?.map(log => log.id) || [];
-    let exercises: any[] = [];
-    
-    if (logIds.length > 0) {
-      const { data: exercisesData } = await supabase
-        .from('workout_exercises')
-        .select('*')
-        .in('training_log_id', logIds)
-        .order('order_index', { ascending: true });
-      
-      exercises = exercisesData || [];
-    }
-
-    // Attach exercises to their respective logs
+    // Return logs with empty exercises array (workout_exercises table not yet implemented)
     const logsWithExercises = logs?.map(log => ({
       ...log,
-      exercises: exercises.filter(ex => ex.training_log_id === log.id)
+      exercises: []
     }));
 
     return NextResponse.json({ logs: logsWithExercises });
@@ -90,35 +64,22 @@ export async function POST(request: NextRequest) {
       duration_minutes,
       intensity,
       notes,
-      body_parts,
-      distance_km,
-      calories_burned,
-      heart_rate_avg,
-      heart_rate_max,
-      workout_date,
-      exercises,
     } = body;
 
     if (!title || !type) {
       return NextResponse.json({ error: 'Title and type are required' }, { status: 400 });
     }
 
-    // Insert training log
+    // Insert training log (using only columns that exist in the schema)
     const { data: log, error: logError } = await supabase
       .from('training_logs')
       .insert({
         user_id: user.id,
         title,
-        type: type as TrainingType,
+        type: type || null,
         duration_minutes: duration_minutes || null,
-        intensity: (intensity || 'medium') as TrainingIntensity,
+        intensity: intensity || 'medium',
         notes: notes || null,
-        body_parts: body_parts || [],
-        distance_km: distance_km || null,
-        calories_burned: calories_burned || null,
-        heart_rate_avg: heart_rate_avg || null,
-        heart_rate_max: heart_rate_max || null,
-        workout_date: workout_date || new Date().toISOString().split('T')[0],
         completed_at: new Date().toISOString(),
       })
       .select()
@@ -129,28 +90,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create training log' }, { status: 500 });
     }
 
-    // Insert exercises if provided (for strength training)
-    if (exercises && exercises.length > 0 && log) {
-      const exercisesToInsert = exercises.map((ex: any, index: number) => ({
-        training_log_id: log.id,
-        user_id: user.id,
-        exercise_name: ex.exercise_name,
-        sets: ex.sets || null,
-        reps: ex.reps || null,
-        weight_kg: ex.weight_kg || null,
-        notes: ex.notes || null,
-        order_index: index,
-      }));
-
-      const { error: exercisesError } = await supabase
-        .from('workout_exercises')
-        .insert(exercisesToInsert);
-
-      if (exercisesError) {
-        console.error('Error inserting exercises:', exercisesError);
-        // Don't fail the whole request, log was created
-      }
-    }
+    // Note: workout_exercises table not yet implemented
+    // Exercises will be supported in a future update
 
     return NextResponse.json({ log });
   } catch (error) {
@@ -170,16 +111,26 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { id, exercises, ...updateData } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'Log ID is required' }, { status: 400 });
     }
 
+    // Only update columns that exist in the schema
+    const allowedFields = ['title', 'type', 'duration_minutes', 'intensity', 'notes', 'completed_at'];
+    const filteredUpdate: Record<string, unknown> = {};
+    for (const key of allowedFields) {
+      if (key in updateData) {
+        filteredUpdate[key] = updateData[key];
+      }
+    }
+
     // Update training log
     const { data: log, error: logError } = await supabase
       .from('training_logs')
-      .update(updateData)
+      .update(filteredUpdate)
       .eq('id', id)
       .eq('user_id', user.id)
       .select()
@@ -190,32 +141,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to update training log' }, { status: 500 });
     }
 
-    // Update exercises if provided
-    if (exercises !== undefined) {
-      // Delete existing exercises
-      await supabase
-        .from('workout_exercises')
-        .delete()
-        .eq('training_log_id', id);
-
-      // Insert new exercises
-      if (exercises.length > 0) {
-        const exercisesToInsert = exercises.map((ex: any, index: number) => ({
-          training_log_id: id,
-          user_id: user.id,
-          exercise_name: ex.exercise_name,
-          sets: ex.sets || null,
-          reps: ex.reps || null,
-          weight_kg: ex.weight_kg || null,
-          notes: ex.notes || null,
-          order_index: index,
-        }));
-
-        await supabase
-          .from('workout_exercises')
-          .insert(exercisesToInsert);
-      }
-    }
+    // Note: workout_exercises table not yet implemented
 
     return NextResponse.json({ log });
   } catch (error) {

@@ -69,7 +69,21 @@ export function useEvents() {
       const { data, error: fetchError } = await query;
 
       if (fetchError) throw fetchError;
-      setEvents(data || []);
+      
+      // Transform data to ensure proper types
+      const transformedData: CalendarEvent[] = (data || []).map(item => ({
+        id: item.id,
+        user_id: item.user_id,
+        title: item.title,
+        description: item.description,
+        aspect: item.aspect,
+        start_date: item.start_date,
+        end_date: item.end_date,
+        all_day: item.all_day ?? false,
+        created_at: item.created_at || new Date().toISOString(),
+      }));
+      
+      setEvents(transformedData);
     } catch (err) {
       console.error('Error fetching events:', err);
       setError('Failed to load events');
@@ -136,6 +150,7 @@ export function useEvents() {
           title: event.title,
           description: event.description || null,
           aspect: event.aspect || 'events',
+          type: 'event', // Required field
           start_date: event.start_date,
           end_date: event.end_date || null,
           all_day: event.all_day || false,
@@ -145,10 +160,23 @@ export function useEvents() {
 
       if (error) throw error;
       
-      setEvents(prev => [...prev, data].sort((a, b) => 
+      // Transform to ensure proper types
+      const transformedData: CalendarEvent = {
+        id: data.id,
+        user_id: data.user_id,
+        title: data.title,
+        description: data.description,
+        aspect: data.aspect,
+        start_date: data.start_date,
+        end_date: data.end_date,
+        all_day: data.all_day ?? false,
+        created_at: data.created_at || new Date().toISOString(),
+      };
+      
+      setEvents(prev => [...prev, transformedData].sort((a, b) => 
         new Date(a.start_date).getTime() - new Date(b.start_date).getTime()
       ));
-      return data;
+      return transformedData;
     } catch (err) {
       console.error('Error creating event:', err);
       setError('Failed to create event');
