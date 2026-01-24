@@ -8,6 +8,7 @@
 import type OpenAI from 'openai';
 import { createClient } from '@/lib/supabase/server';
 import { format } from 'date-fns';
+import { validateTrainingLog, validateMeal, logValidation } from './schemaValidator';
 
 // ============================================================================
 // TYPES
@@ -686,34 +687,29 @@ export async function executeAspectTool(
 
 /**
  * Log a training/workout session
+ * Uses schema validator to ensure AI output matches database schema
  */
 async function logTraining(
   userId: string,
   args: Record<string, unknown>
 ): Promise<ToolExecutionResult> {
   const supabase = await createClient();
-  const now = new Date();
 
-  // Build notes with extra info (pace, conditions, etc.)
-  let notesContent = (args.notes as string) || '';
-  if (args.pace) {
-    notesContent = `Pace: ${args.pace}. ${notesContent}`.trim();
+  // Validate and transform AI output to match database schema
+  const validation = validateTrainingLog(userId, args);
+  logValidation('log_training', args, validation);
+
+  if (!validation.success || !validation.data) {
+    return {
+      success: false,
+      message: `Validation failed: ${validation.errors.join(', ')}`,
+    };
   }
 
-  console.log('[AI Tool] Logging training with args:', args);
-
-  // Insert using only columns that exist in the training_logs schema
+  // Insert the validated data
   const { data, error } = await supabase
     .from('training_logs')
-    .insert({
-      user_id: userId,
-      title: (args.title as string) || `${args.type} workout`,
-      type: (args.type as string) || 'cardio',
-      duration_minutes: (args.duration_minutes as number) || null,
-      intensity: (args.intensity as string) || 'medium',
-      notes: notesContent || null,
-      completed_at: now.toISOString(),
-    })
+    .insert(validation.data)
     .select()
     .single();
 
@@ -727,10 +723,16 @@ async function logTraining(
 
   console.log('[AI Tool] Successfully logged training:', data);
 
+  // Build user-friendly response
+  const loggedData = validation.data;
+  const durationText = loggedData.duration_minutes 
+    ? `${loggedData.duration_minutes} minutes of ` 
+    : '';
+  
   return {
     success: true,
-    message: `Logged "${args.title}" - ${args.duration_minutes} minutes of ${args.type}`,
-    data: { id: (data as { id: string }).id, title: (data as { title: string }).title },
+    message: `Logged "${loggedData.title}" - ${durationText}${loggedData.type}`,
+    data: { id: (data as { id: string }).id, title: loggedData.title },
   };
 }
 
@@ -788,6 +790,7 @@ async function logSleep(
 
 /**
  * Log a meal
+ * Uses schema validator to ensure AI output matches database schema
  */
 async function logFood(
   userId: string,
@@ -795,33 +798,44 @@ async function logFood(
 ): Promise<ToolExecutionResult> {
   const supabase = await createClient();
 
-  // Build meal name from description
-  const mealName = args.description as string;
+  // Map AI args to expected format (description -> name)
+  const normalizedArgs = {
+    ...args,
+    name: args.description || args.name || args.food || args.meal,
+    type: args.meal_type || args.type,
+  };
+
+  // Validate and transform AI output to match database schema
+  const validation = validateMeal(userId, normalizedArgs);
+  logValidation('log_food', args, validation);
+
+  if (!validation.success || !validation.data) {
+    return {
+      success: false,
+      message: `Validation failed: ${validation.errors.join(', ')}`,
+    };
+  }
 
   const { data, error } = await supabase
     .from('meals')
-    .insert({
-      user_id: userId,
-      name: mealName,
-      type: args.meal_type as string,
-      calories: (args.calories as number) || null,
-      notes: (args.notes as string) || null,
-      logged_at: new Date().toISOString(),
-    })
+    .insert(validation.data)
     .select()
     .single();
 
   if (error) {
-    console.error('Error logging meal:', error);
+    console.error('[AI Tool] Error logging meal:', error);
     return {
       success: false,
       message: `Failed to log meal: ${error.message}`,
     };
   }
 
+  const mealData = validation.data;
+  const caloriesText = mealData.calories ? ` (${mealData.calories} cal)` : '';
+  
   return {
     success: true,
-    message: `Logged ${args.meal_type}: ${mealName}`,
+    message: `Logged ${mealData.type || 'meal'}: ${mealData.name}${caloriesText}`,
     data: { id: data.id },
   };
 }
