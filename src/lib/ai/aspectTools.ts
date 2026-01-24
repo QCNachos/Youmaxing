@@ -693,36 +693,27 @@ async function logTraining(
 ): Promise<ToolExecutionResult> {
   const supabase = await createClient();
   const now = new Date();
-  const today = format(now, 'yyyy-MM-dd');
 
-  // Build insert object - only include fields that are in the base schema
-  // Additional fields (workout_date, duration_seconds) may exist in DB but not types
-  const insertData: Record<string, unknown> = {
-    user_id: userId,
-    type: args.type as string,
-    title: args.title as string,
-    duration_minutes: args.duration_minutes as number,
-    notes: (args.notes as string) || null,
-    intensity: (args.intensity as string) || 'medium',
-    completed_at: now.toISOString(),
-  };
-
-  // Add optional fields that may exist in newer schema
-  // These are added dynamically to avoid TypeScript errors
-  (insertData as Record<string, unknown>).workout_date = today;
-  if (args.duration_minutes) {
-    (insertData as Record<string, unknown>).duration_seconds = (args.duration_minutes as number) * 60;
-  }
-  if (args.calories_burned) {
-    (insertData as Record<string, unknown>).calories_burned = args.calories_burned;
+  // Build notes with extra info (pace, conditions, etc.)
+  let notesContent = (args.notes as string) || '';
+  if (args.pace) {
+    notesContent = `Pace: ${args.pace}. ${notesContent}`.trim();
   }
 
-  console.log('[AI Tool] Logging training:', insertData);
+  console.log('[AI Tool] Logging training with args:', args);
 
-  // Use type assertion for insert since we have extra fields
+  // Insert using only columns that exist in the training_logs schema
   const { data, error } = await supabase
     .from('training_logs')
-    .insert(insertData as Parameters<typeof supabase.from<'training_logs'>>['0'] extends string ? never : Record<string, unknown>)
+    .insert({
+      user_id: userId,
+      title: (args.title as string) || `${args.type} workout`,
+      type: (args.type as string) || 'cardio',
+      duration_minutes: (args.duration_minutes as number) || null,
+      intensity: (args.intensity as string) || 'medium',
+      notes: notesContent || null,
+      completed_at: now.toISOString(),
+    })
     .select()
     .single();
 
